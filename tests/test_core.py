@@ -346,3 +346,27 @@ def test_clean_title():
         "Seeing lots of ads for health insurance plans?"
     assert radar.clean_title("Social Security Announces 3.6 Percent Benefit Increase for 2027") == \
         "Social Security Announces 3.6 Percent Benefit Increase for 2027"
+
+
+def test_allowed_phrase_beats_blocked_word():
+    ch = config.load_settings()["channels"]["money"]
+    assert "trump account" in [w.lower() for w in ch["priority_keywords"]]
+    assert radar.classify("Frank Bisignano donates to Trump Accounts for children in Brooklyn", ch) == 2
+    assert radar.classify("Trump speaks at campaign rally about the election", ch) == 4
+    assert radar.classify("Trump Accounts open while Trump visits Ohio", ch) == 4   # other mention still blocked
+    p = load_sample("sample-short-cola")
+    p["scenes"][0]["vo"] = "Trump Accounts give every child a $1,000 start."
+    assert factcheck.blocked_hits(p, ch["blocked_words"], ch["allowed_phrases"]) == []
+    p["scenes"][0]["vo"] = "Trump says the election matters."
+    assert set(factcheck.blocked_hits(p, ch["blocked_words"], ch["allowed_phrases"])) == {"trump", "election"}
+
+
+def test_migration_adds_priority_once():
+    config.update_settings(lambda s: (s["channels"]["money"].update(
+        priority_keywords=[w for w in s["channels"]["money"]["priority_keywords"] if w != "trump account"]),
+        s.update(_migrations=[])))
+    assert "trump account" in config.load_settings()["channels"]["money"]["priority_keywords"]
+    config.update_settings(lambda s: s["channels"]["money"].update(
+        priority_keywords=[w for w in s["channels"]["money"]["priority_keywords"] if w != "trump account"]))
+    assert "trump account" not in config.load_settings()["channels"]["money"]["priority_keywords"]  # owner removed it: respected
+    config.update_settings(lambda s: s["channels"]["money"]["priority_keywords"].append("trump account"))

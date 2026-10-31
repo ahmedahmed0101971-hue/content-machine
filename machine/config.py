@@ -83,6 +83,18 @@ MOVED_URLS = {
 RENAMED_SOURCES = {"bls_news": "التضخم CPI · BLS"}
 
 
+def _migrate(s: dict) -> dict:
+    """One-time changes to saved settings (each runs once; recorded in _migrations once settings are saved)."""
+    done = set(s.get("_migrations", []))
+    if "trump_accounts_priority" not in done:
+        m = s.get("channels", {}).get("money")
+        if m is not None and "trump account" not in [w.lower() for w in m.get("priority_keywords", [])]:
+            m.setdefault("priority_keywords", []).append("trump account")
+        done.add("trump_accounts_priority")
+    s["_migrations"] = sorted(done)
+    return s
+
+
 def _merge_sources(cur_ch: dict, dflt_ch: dict) -> None:
     srcs = cur_ch.setdefault("sources", [])
     for src in srcs:
@@ -105,7 +117,7 @@ def load_settings() -> dict:
             return s
         with open(SETTINGS_FILE, encoding="utf-8") as f:
             s = json.load(f)
-        return _merge_defaults(s, default_settings())
+        return _migrate(_merge_defaults(s, default_settings()))
 
 
 def save_settings(s: dict) -> None:

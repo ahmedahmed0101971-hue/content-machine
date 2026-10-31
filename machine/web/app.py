@@ -298,6 +298,7 @@ def create_app() -> Flask:
                     src["enabled"] = request.form.get(f"src_{src['id']}") == "on"
                 c["blocked_words"] = [w.strip() for w in request.form.get("blocked", "").split(",") if w.strip()]
                 c["priority_keywords"] = [w.strip() for w in request.form.get("priority", "").split(",") if w.strip()]
+                c["allowed_phrases"] = [w.strip() for w in request.form.get("allowed", "").split(",") if w.strip()]
             config.update_settings(apply)
             flash("اتحفظ ✅", "ok")
             return redirect(url_for("sources_page") + f"#{cid}")

@@ -22,6 +22,8 @@
   {% endfor %}
   <label for="blocked_{{ cid }}">مواضيع ممنوعة (افصل بفاصلة). أي خبر أو سكربت فيه الكلمات دي بيتوقف.</label>
   <textarea id="blocked_{{ cid }}" class="ltr" name="blocked">{{ c.blocked_words|join(', ') }}</textarea>
+  <label for="allowed_{{ cid }}">عبارات مسموحة رغم إن فيها كلمة ممنوعة (أسماء برامج رسمية زي Trump Accounts)</label>
+  <textarea id="allowed_{{ cid }}" class="ltr" name="allowed">{{ (c.allowed_phrases or [])|join(', ') }}</textarea>
   <label for="prio_{{ cid }}">كلمات الأخبار المهمة (بتخلي الخبر "مهم" وتبعتلك تنبيه)</label>
   <textarea id="prio_{{ cid }}" class="ltr" name="priority">{{ c.priority_keywords|join(', ') }}</textarea>
   <p><button class="btn primary">حفظ</button></p>

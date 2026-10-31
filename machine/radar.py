@@ -251,8 +251,9 @@ def fetch_source(src: dict) -> list[dict]:
 
 
 def classify(title: str, ch: dict) -> int:
+    from .factcheck import find_blocked
     low = title.lower()
-    if any(re.search(rf"(?<![a-z]){re.escape(w.lower())}(?![a-z])", low) for w in ch.get("blocked_words", [])):
+    if find_blocked(title, ch.get("blocked_words", []), ch.get("allowed_phrases", [])):
         return 4
     if any(w.lower() in low for w in ch.get("priority_keywords", [])):
         return 2

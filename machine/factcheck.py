@@ -79,12 +79,27 @@ def numbers_in(text: str) -> set[str]:
     return out
 
 
-def blocked_hits(pkg: dict, words: list[str]) -> list[str]:
-    txt = " " + normalize(all_text(pkg) + " " + " ".join(s.get("vo", "") for s in pkg.get("scenes", []))) + " "
-    return [w for w in words if re.search(rf"(?<![a-z]){re.escape(w.lower())}(?![a-z])", txt)]
+def strip_allowed(text: str, allowed: list[str] | None) -> str:
+    """Remove allowed phrases (e.g. the program name "Trump Accounts") before looking for blocked words."""
+    low = text.lower()
+    for ph in sorted(allowed or [], key=len, reverse=True):
+        ph = ph.strip().lower()
+        if ph:
+            low = re.sub(rf"(?<![a-z]){re.escape(ph)}(?![a-z])", " ", low)
+    return low
 
 
-def run(pkg: dict, blocked_words: list[str]) -> dict:
+def find_blocked(text: str, words: list[str], allowed: list[str] | None = None) -> list[str]:
+    low = " " + strip_allowed(text, allowed) + " "
+    return [w for w in words if w.strip() and re.search(rf"(?<![a-z]){re.escape(w.strip().lower())}(?![a-z])", low)]
+
+
+def blocked_hits(pkg: dict, words: list[str], allowed: list[str] | None = None) -> list[str]:
+    txt = normalize(all_text(pkg) + " " + " ".join(s.get("vo", "") for s in pkg.get("scenes", [])))
+    return find_blocked(txt, words, allowed)
+
+
+def run(pkg: dict, blocked_words: list[str], allowed_phrases: list[str] | None = None) -> dict:
     cache: dict[str, str | None] = {}
     errors: dict[str, str] = {}
 
@@ -127,7 +142,7 @@ def run(pkg: dict, blocked_words: list[str]) -> dict:
         if n not in covered:
             uncovered.append(n)
 
-    blocked = blocked_hits(pkg, blocked_words)
+    blocked = blocked_hits(pkg, blocked_words, allowed_phrases)
     missing = [x for x in facts_out if x["status"] == "missing"]
     unreachable = [x for x in facts_out if x["status"] == "unreachable"]
     derived = [x for x in facts_out if x["status"] == "derived"]

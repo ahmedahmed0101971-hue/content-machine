@@ -49,6 +49,10 @@ user's Google Drive folder `ContentMachine/`.
 - Open the official page itself for every number you use. Search snippets are not sources.
 - Projections must say "projected"/"expected" on screen, in the voice, and in the title, until official.
 - Never: politics/elections, medical advice, "free money"/stimulus-style claims, celebrities, investment picks.
+- Allowed exception: official program names that contain a blocked word (channel `allowed_phrases`, e.g.
+  "Trump Accounts", the Treasury/IRS savings accounts for children). Cover them like any benefit: who qualifies,
+  amounts, dates, how to sign up — from treasury.gov / irs.gov only. No opinions, no politicians, no praise or
+  criticism; never use the blocked word outside the program name.
 
 ## Writing rules
 - Hook in the first sentence: what changes for the viewer, with a number or date. Honest curiosity only.

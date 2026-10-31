@@ -18,7 +18,8 @@
     "slots": {"short1": "07:00", "longA": "09:00", "longB": "12:00", "longC": "15:00", "short2": "18:00"},
     "limits": {"max_long": 4, "max_short": 5},
     "blocked_words": ["election", "candidate", "democrat", "republican", "trump", "biden", "cure", "miracle", "free money", "stimulus check", "celebrity"],
-    "priority_keywords": ["social security", "ssi", "cola", "medicare", "part b", "irs", "401(k)", "tax bracket", "standard deduction", "i bond", "scam", "fraud", "payment", "benefit"],
+    "allowed_phrases": ["trump account", "trump accounts"],
+    "priority_keywords": ["social security", "ssi", "cola", "medicare", "part b", "irs", "401(k)", "tax bracket", "standard deduction", "i bond", "scam", "fraud", "payment", "benefit", "trump account"],
     "sources": [
       {"id": "google_trends", "name": "Google Trends · أمريكا", "type": "rss", "role": "trends", "url": "https://trends.google.com/trending/rss?geo=US", "enabled": true},
       {"id": "ssa_press", "name": "الضمان الاجتماعي · SSA", "type": "html_links", "url": "https://www.ssa.gov/news/en/press/releases/", "link_contains": "/news/en/press/releases/20", "enabled": true},

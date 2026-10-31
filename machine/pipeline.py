@@ -101,7 +101,7 @@ def check_new() -> None:
             events.warn(f"اترفض تلقائياً لأنه فوق الحد اليومي: {pkg['youtube']['title']}", p["channel"], notify=False)
             continue
         try:
-            res = factcheck.run(pkg, ch.get("blocked_words", []))
+            res = factcheck.run(pkg, ch.get("blocked_words", []), ch.get("allowed_phrases", []))
         except Exception as e:
             res = {"ok": False, "auto_ok": False, "facts": [], "uncovered_numbers": [], "blocked_words": [],
                    "summary": f"الفحص ماكملش: {e}"}
@@ -375,7 +375,8 @@ def system_snapshot() -> dict:
         chans[cid] = {
             "name": ch["name"], "enabled": ch["enabled"], "auto_publish": ch["auto_publish"],
             "slots_et": ch["slots"], "limits": ch.get("limits", {}),
-            "blocked_words": ch.get("blocked_words", []), "voice": ch["voice"],
+            "blocked_words": ch.get("blocked_words", []), "allowed_phrases": ch.get("allowed_phrases", []),
+            "voice": ch["voice"],
             "youtube_connected": ch.get("youtube", {}).get("connected", False),
             "today_et": today,
             "recent": [{"id": p["id"], "title": p["data"]["youtube"]["title"], "slot": p["slot"], "date": p["pkg_date"],
