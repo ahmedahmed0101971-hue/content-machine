@@ -90,6 +90,15 @@ def upload(cid: str, video_path: str, meta: dict, publish_at: datetime | None, p
     raise GoogleError("الرفع فشل بعد محاولات كتير")
 
 
+def video_status(cid: str, video_id: str) -> dict:
+    """{'privacyStatus', 'publishAt', 'uploadStatus', 'rejectionReason'...} as YouTube reports it now."""
+    if config.OFFLINE:
+        return {}
+    r = request("GET", f"{API}/videos", params={"part": "status", "id": video_id}, headers=auth_headers(token_name(cid)))
+    items = check(r, "قراءة حالة الفيديو").get("items", [])
+    return items[0]["status"] if items else {}
+
+
 def set_thumbnail(cid: str, video_id: str, jpg_path: str) -> None:
     if config.OFFLINE:
         return

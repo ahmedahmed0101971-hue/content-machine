@@ -7,7 +7,7 @@
   <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="section" value="global">
   <h2>عام</h2>
   <div class="switch"><div><strong>🛑 إيقاف الطوارئ</strong><div class="sub">يوقف أي رفع على يوتيوب فوراً (التجهيز بيكمل عادي)</div></div><input type="checkbox" name="emergency_stop" {{ 'checked' if S.emergency_stop }}></div>
-  <div class="switch"><div><strong>جوجل وافقت على مراجعة الـAPI</strong><div class="sub">فعّلها بس لما توصلك موافقة جوجل. قبلها الفيديوهات بتترفع خاصة (Private)</div></div><input type="checkbox" name="youtube_audited" {{ 'checked' if S.youtube_audited }}></div>
+  <div class="switch"><div><strong>انشر علني ومجدول</strong><div class="sub">لما تكون متفعّلة: الفيديو بيتجدول وينزل علني في ميعاده. لو يوتيوب قفله خاص (المشروع محتاج Audit)، البرنامج هيكتشف ده لوحده ويقفل الاختيار ده ويبلغك</div></div><input type="checkbox" name="youtube_audited" {{ 'checked' if S.youtube_audited }}></div>
   <label for="tg_token">تنبيهات تيليجرام (اختياري) · Bot token</label>
   <input id="tg_token" class="ltr" type="text" name="tg_token" value="{{ S.telegram.bot_token }}" autocomplete="off">
   <label for="tg_chat">Chat ID</label>

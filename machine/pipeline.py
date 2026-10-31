@@ -204,8 +204,22 @@ def upload_next() -> bool:
                 except Exception as e:
                     events.warn(f"الصورة المصغرة ماترفعتش: {e}", p["channel"], notify=False)
             st = "published" if public_now else ("scheduled" if schedule else "private")
+            locked = False
+            if audited:
+                # Verify YouTube kept what we asked for (unaudited projects get locked to private).
+                try:
+                    vs = youtube.video_status(p["channel"], vid)
+                    if vs and vs.get("privacyStatus") == "private" and not vs.get("publishAt"):
+                        locked, st = True, "private"
+                except Exception as e:
+                    events.warn(f"مقدرتش أتأكد من حالة الفيديو على يوتيوب: {e}", p["channel"], notify=False)
             db.pkg_update(p["id"], status=st, youtube_id=vid, error="")
-            if not audited:
+            if locked:
+                config.update_settings(lambda x: x.update({"youtube_audited": False}))
+                events.error("يوتيوب قفل الفيديو خاص (Private): المشروع لسه محتاج موافقة مراجعة الـAPI (Audit). "
+                             f"رجّعت الرفع لوضع الخاص لحد الموافقة. الفيديو: {pkg['youtube']['title']}",
+                             p["channel"], notify=True)
+            elif not audited:
                 events.warn(f"اترفع كفيديو خاص (Private) لحد ما جوجل توافق على مراجعة الـAPI: {pkg['youtube']['title']}",
                             p["channel"], notify=False)
             else:
