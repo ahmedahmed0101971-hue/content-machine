@@ -8,12 +8,13 @@ if [ -z "${CM_DETACHED:-}" ] && command -v systemd-run >/dev/null; then
 fi
 log() { sudo -u machine env MACHINE_DATA=/var/lib/content-machine "$APP/.venv/bin/python" -c \
   "from machine import events; events.$1('''$2''', notify=False)" 2>/dev/null || true; }
-if git -C "$APP" pull --ff-only && "$APP/.venv/bin/pip" install -q -r "$APP/requirements.txt"; then
+pull() { if [ -d "$APP/.git" ]; then git -C "$APP" pull --ff-only; else echo "no git repo: skipping pull"; fi; }
+if pull && "$APP/.venv/bin/pip" install -q -r "$APP/requirements.txt"; then
   cp "$APP"/deploy/content-machine-*.service /etc/systemd/system/
   systemctl daemon-reload
   systemctl restart content-machine-worker content-machine-web
   sleep 3
-  log info "التحديث خلص ✅ النسخة: $(git -C "$APP" log -1 --format=%h)"
+  log info "التحديث خلص ✅ النسخة: $(git -C "$APP" log -1 --format=%h 2>/dev/null || cat "$APP/machine/__init__.py" | grep -o '[0-9.]*' | tail -1)"
 else
   log error "التحديث فشل. شغّل sudo /opt/content-machine/update.sh وابعت الرسالة لـClaude."
   exit 1

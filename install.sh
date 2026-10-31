@@ -22,7 +22,7 @@ command -v apt-get >/dev/null || die "السكربت ده لـ Ubuntu بس"
 say "1/7 تثبيت الأدوات (ffmpeg, python, ...)"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
-apt-get install -y python3 python3-venv python3-pip ffmpeg poppler-utils git curl ca-certificates tzdata ufw
+apt-get install -y python3 python3-venv python3-pip ffmpeg poppler-utils git curl ca-certificates tzdata ufw unzip
 
 say "2/7 مستخدم الخدمة"
 id -u "$SVC_USER" >/dev/null 2>&1 || useradd --system --home "$DATA" --shell /usr/sbin/nologin "$SVC_USER"
@@ -31,8 +31,15 @@ chown -R "$SVC_USER:$SVC_USER" "$DATA"
 chmod 750 "$DATA"
 
 say "3/7 تنزيل البرنامج"
-if [ -d "$APP/.git" ]; then
+SRC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || true)"
+if [ -n "$SRC_DIR" ] && [ -d "$SRC_DIR/machine" ] && [ "$SRC_DIR" != "$APP" ]; then
+  # installing from an uploaded/unzipped folder (no GitHub needed)
+  mkdir -p "$APP"
+  cp -a "$SRC_DIR/." "$APP/"
+elif [ -d "$APP/.git" ]; then
   git -C "$APP" pull --ff-only
+elif [ -d "$APP/machine" ]; then
+  : # already installed from a folder
 else
   [ -n "$REPO" ] || die "حدد رابط الريبو: REPO=https://github.com/<user>/<repo>.git"
   URL="$REPO"
@@ -40,6 +47,8 @@ else
   git clone --branch "$BRANCH" "$URL" "$APP"
   chmod 600 "$APP/.git/config"
 fi
+chown -R root:root "$APP"
+chmod -R a+rX "$APP"
 chmod +x "$APP/install.sh" "$APP/update.sh"
 
 say "4/7 بيئة Python"
