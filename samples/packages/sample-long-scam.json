@@ -12,9 +12,19 @@
       "vo": "Someone says you qualify for a free government grant? Stop. Here is how to tell it's a scam.",
       "pill": "SCAM ALERT",
       "lines": [
-        {"text": "\"You qualify for", "color": "white"},
-        {"text": "a free grant\"", "color": "alert"},
-        {"text": "is a red flag.", "color": "white", "cue": "Stop"}
+        {
+          "text": "\"You qualify for",
+          "color": "white"
+        },
+        {
+          "text": "a free grant\"",
+          "color": "alert"
+        },
+        {
+          "text": "is a red flag.",
+          "color": "white",
+          "cue": "Stop"
+        }
       ]
     },
     {
@@ -22,10 +32,30 @@
       "vo": "The FTC lists the warning signs. They contact you out of the blue. They say the grant can pay your bills. They ask for your Social Security number. And they want a fee, often in gift cards or crypto.",
       "label": "4 WARNING SIGNS",
       "cards": [
-        {"label": "SIGN 1", "value": "They contacted you first", "color": "alert", "cue": "out of the blue"},
-        {"label": "SIGN 2", "value": "\"Pays your bills\"", "color": "alert", "cue": "pay your bills"},
-        {"label": "SIGN 3", "value": "Asks for your SSN", "color": "alert", "cue": "Social Security number"},
-        {"label": "SIGN 4", "value": "Wants a fee", "color": "alert", "cue": "fee"}
+        {
+          "label": "SIGN 1",
+          "value": "They contacted you first",
+          "color": "alert",
+          "cue": "out of the blue"
+        },
+        {
+          "label": "SIGN 2",
+          "value": "\"Pays your bills\"",
+          "color": "alert",
+          "cue": "pay your bills"
+        },
+        {
+          "label": "SIGN 3",
+          "value": "Asks for your SSN",
+          "color": "alert",
+          "cue": "Social Security number"
+        },
+        {
+          "label": "SIGN 4",
+          "value": "Wants a fee",
+          "color": "alert",
+          "cue": "fee"
+        }
       ]
     },
     {
@@ -33,9 +63,18 @@
       "vo": "What to do: never pay a fee for a grant, never share your bank details, and report it at ReportFraud dot FTC dot gov.",
       "title": "WHAT TO DO",
       "items": [
-        {"text": "Never pay a fee for a \"grant\"", "cue": "never pay"},
-        {"text": "Never share bank details", "cue": "bank details"},
-        {"text": "Report it: ReportFraud.ftc.gov", "cue": "report it"}
+        {
+          "text": "Never pay a fee for a \"grant\"",
+          "cue": "never pay"
+        },
+        {
+          "text": "Never share bank details",
+          "cue": "bank details"
+        },
+        {
+          "text": "Report it: ReportFraud.ftc.gov",
+          "cue": "report it"
+        }
       ]
     },
     {
@@ -47,13 +86,34 @@
     }
   ],
   "facts": [],
-  "sources": [{"name": "FTC consumer alert", "url": "https://www.consumer.ftc.gov/consumer-alerts/2026/03/how-avoid-government-grant-scams-offer-free-money-personal-expenses"}],
-  "ticker": ["Real agencies don't call about grants you didn't apply for", "Never pay a fee for a grant", "Report: ReportFraud.ftc.gov"],
+  "sources": [
+    {
+      "name": "FTC consumer alert",
+      "url": "https://www.consumer.ftc.gov/consumer-alerts/2026/03/how-avoid-government-grant-scams-offer-free-money-personal-expenses"
+    }
+  ],
+  "ticker": [
+    "Real agencies don't call about grants you didn't apply for",
+    "Never pay a fee for a grant",
+    "Report: ReportFraud.ftc.gov"
+  ],
   "youtube": {
     "title": "\"You Qualify for a Free Government Grant\" — 4 Signs It's a Scam",
     "description": "How to spot fake government grant offers, from the FTC.\nhttps://www.consumer.ftc.gov/consumer-alerts/2026/03/how-avoid-government-grant-scams-offer-free-money-personal-expenses\nAI-assisted. Not legal advice.",
-    "tags": ["government grant scam", "ftc scam alert", "free grant scam"],
+    "tags": [
+      "government grant scam",
+      "ftc scam alert",
+      "free grant scam"
+    ],
     "category_id": "25"
   },
-  "thumbnail": {"kicker": "Scam alert", "big": "FAKE GRANT", "small": "4 signs to spot it", "color": "alert"}
+  "thumbnail": {
+    "tile_top": "SCAM",
+    "tile_value": "!",
+    "words": [
+      "FAKE",
+      "GRANT",
+      "CALLS"
+    ]
+  }
 }

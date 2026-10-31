@@ -89,6 +89,17 @@ def validate(pkg: dict, settings: dict) -> list[str]:
     tags = yt.get("tags", [])
     if not isinstance(tags, list) or len(",".join(tags)) > 480:
         errs.append("التاجات كتير (أقصى حد حوالي 480 حرف)")
+    th = pkg.get("thumbnail") or {}
+    if pkg.get("format") == "long":
+        if not th.get("tile_value") or not th.get("words"):
+            errs.append("الصورة المصغرة ناقصة (tile_value و words)")
+        else:
+            if len(str(th.get("tile_top", ""))) > 9:
+                errs.append("الصورة المصغرة: الكلمة اللي فوق النتيجة أطول من 9 حروف")
+            if len(str(th["tile_value"])) > 7:
+                errs.append("الصورة المصغرة: الرقم في النتيجة أطول من 7 حروف")
+            if not isinstance(th["words"], list) or not 1 <= len(th["words"]) <= 4 or any(len(str(w)) > 11 for w in th["words"]):
+                errs.append("الصورة المصغرة: من 1 لـ4 كلمات، وكل كلمة 11 حرف بالكتير")
     if not pkg.get("sources"):
         errs.append("مفيش مصدر رسمي مذكور")
     for f in pkg.get("facts", []):

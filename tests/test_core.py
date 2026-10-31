@@ -190,3 +190,16 @@ def test_recover(clean_db):
     db.pkg_insert(p, "rendering")
     worker.recover()
     assert db.pkg_get("recover-test")["status"] == "approved"
+
+
+def test_thumbnail_rules_and_no_truncation(tmp_path):
+    from machine.render.thumbnail import _fields, render_thumbnail
+    s = config.load_settings()
+    p = load_sample("sample-long-ssa-november")
+    p["thumbnail"] = {"tile_top": "MEDICARE", "tile_value": "$202.90", "words": ["NEW", "PREMIUM"]}
+    assert package.validate(p, s) == []
+    assert _fields(p)[1] == "$202.90"
+    render_thumbnail(p, s["channels"]["money"]["theme"], str(tmp_path / "t.jpg"))
+    p["thumbnail"] = {"tile_top": "NOVEMBER2026", "tile_value": "$1,234.56", "words": ["A", "B", "C", "D", "E"]}
+    errs = package.validate(p, s)
+    assert len([e for e in errs if "الصورة المصغرة" in e]) == 3

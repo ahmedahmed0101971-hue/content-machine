@@ -67,5 +67,8 @@ See `samples/packages/*.json` in the repository for complete examples. Scene typ
 Every scene needs `vo` (the narration for that scene). `cue` = a few words from that scene's `vo`; the element
 appears when the voice says them. Colors: accent, accent2, alert, white, muted.
 `youtube`: title ≤ 100 chars (no < >), description with the official links + "This video was produced with AI
-assistance ... Not financial or legal advice.", 5–12 tags. Long videos: `ticker` (5–7 short items) and `thumbnail`
-{kicker, big (≤ 10 chars), small, color}.
+assistance ... Not financial or legal advice.", 5–12 tags. Long videos: `ticker` (5–7 short items) and the official thumbnail (template B, approved by the owner, never change it):
+`"thumbnail": {"tile_top": "NOV", "tile_value": "10", "words": ["YOUR", "CHECK", "COMES", "EARLY"]}`
+- tile_top ≤ 9 chars (month, year, program name, "SCAM", "ALERT"); tile_value ≤ 7 chars (the date, number or "!").
+- words: 1–4 words, ≤ 11 chars each, read as one punchy phrase; the LAST word is the hook (shown in red).
+- The thumbnail complements the title, it doesn't repeat it. Every number in it must also be in `facts`.
