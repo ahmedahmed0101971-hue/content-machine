@@ -1,2 +1,2 @@
 """Content Machine: daily automated YouTube production (scripts come from Claude via Google Drive)."""
-__version__ = "1.0.6"
+__version__ = "1.0.7"

@@ -75,6 +75,11 @@ user's Google Drive folder `ContentMachine/`.
   then 1–2 broad ones (program name, agency). Lowercase, no duplicates, no unrelated trending words.
 - Thumbnail words complement the title (never repeat it); the tile shows the single most-searched number/date.
 - Prefer topics with clear search demand: dates, amounts, deadlines, "what changes in <year>", "how to".
+- Chapters (long videos): give EVERY scene a `"chapter"` (3–7 words, ≤ 70 chars) phrased as a search query
+  with the keyword + year, e.g. "SSI Payment Increase 2027", "Social Security Earnings Limit 2027",
+  "How to See Your New Benefit Amount". The machine times them from the real narration and writes
+  "00:00 …" chapters into the description (YouTube rules: ≥ 3 chapters, each ≥ 10 s; short scenes merge).
+  Keep each scene ≥ 12 s of narration when you want it to be its own chapter.
 
 ## Package format
 Write one JSON file per video to `ContentMachine/<channel>/packages/<id>.json`.

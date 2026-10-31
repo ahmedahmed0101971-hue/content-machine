@@ -246,3 +246,28 @@ def test_moved_source_url_is_fixed():
     config.update_settings(fn)
     src = [x for x in config.load_settings()["channels"]["money"]["sources"] if x["id"] == "bls_news"][0]
     assert src["url"] == "https://www.bls.gov/feed/bls_latest.rss"
+
+
+def test_chapters_follow_youtube_rules():
+    p = load_sample("sample-long-ssa-november")
+    for k, sc in enumerate(p["scenes"]):
+        sc["chapter"] = f"Chapter {k}"
+    tl = [{"start": s, "end": e} for s, e in [(0, 8.4), (8.4, 40.2), (40.2, 47.0), (47.0, 70.1), (70.1, 95.5), (95.5, 104)]]
+    chs = pipeline.chapters(p, tl)
+    # intro (8.4 s) merges with the 31.8 s scene -> 00:00 takes its title; 6.8 s scene 2 merges into scene 3
+    assert chs == [(0, "Chapter 1"), (41, "Chapter 3"), (71, "Chapter 4")]
+    assert all(b[0] - a[0] >= 10 for a, b in zip(chs, chs[1:]))
+    assert 104 - chs[-1][0] >= 10
+    p["_chapters"] = chs
+    d = pipeline.youtube_meta(p)["description"]
+    first, _, rest = d.partition("\n\n")
+    assert rest.startswith("Chapters:\n00:00 Chapter 1\n00:41 Chapter 3\n01:11 Chapter 4")
+    assert pipeline.fmt_ts(3725) == "1:02:05"
+
+
+def test_no_chapters_for_shorts_or_too_few():
+    p = load_sample("sample-short-cola")
+    assert pipeline.chapters(p, [{"start": 0, "end": 30}] * len(p["scenes"])) == []
+    p = load_sample("sample-long-ssa-november")
+    tl = [{"start": 0, "end": 5}, {"start": 5, "end": 12}] + [{"start": 12, "end": 14}] * (len(p["scenes"]) - 2)
+    assert pipeline.chapters(p, tl) == []

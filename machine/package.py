@@ -76,6 +76,10 @@ def validate(pkg: dict, settings: dict) -> list[str]:
         for field in SCENE_TYPES[t]:
             if field not in sc or sc[field] in (None, "", []):
                 errs.append(f"المشهد {i} ({t}): الحقل '{field}' ناقص")
+        ch_title = sc.get("chapter")
+        if ch_title is not None and (not isinstance(ch_title, str) or not 2 <= len(ch_title.strip()) <= 70
+                                     or "<" in ch_title or ">" in ch_title):
+            errs.append(f"المشهد {i}: عنوان الفصل (chapter) لازم يكون نص من 2 لـ70 حرف")
     yt = pkg.get("youtube") or {}
     title = str(yt.get("title", ""))
     if not title:

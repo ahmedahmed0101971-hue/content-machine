@@ -157,6 +157,69 @@ def render_package(p: dict, with_voice: bool = True, progress=None) -> dict:
     return {"video": str(final), "thumb": str(thumb) if thumb else None, "duration": vdur, "timeline": [t.__dict__ for t in tl]}
 
 
+MIN_CHAPTER_SEC = 10     # YouTube: every chapter must be at least 10 seconds
+MIN_CHAPTERS = 3         # YouTube: at least 3 timestamps, the first at 00:00
+
+
+def _fallback_chapter(sc: dict) -> str:
+    for key in ("chapter", "label", "title", "kicker"):
+        v = sc.get(key)
+        if isinstance(v, str) and v.strip():
+            return v.strip()
+    lines = sc.get("lines") or []
+    txt = " ".join(x.get("text", "") for x in lines if isinstance(x, dict)).strip()
+    return txt or sc.get("type", "").replace("_", " ")
+
+
+def _clean_chapter(t: str) -> str:
+    t = " ".join(t.replace("<", "").replace(">", "").split())
+    if t.isupper():                      # "AVERAGE MONTHLY CHECK" -> "Average Monthly Check"
+        t = " ".join(w if any(c.isdigit() for c in w) or len(w) <= 4 and w.isalpha() and w in
+                     {"SSI", "SSA", "IRS", "FTC", "CMS", "COLA", "SGA", "FRA", "USA", "US"} else w.capitalize()
+                     for w in t.split())
+    return t[:70]
+
+
+def chapters(pkg: dict, timeline: list) -> list[tuple[int, str]]:
+    """YouTube chapters from the real scene timing (long videos only). [] if YouTube's rules can't be met.
+
+    Scenes closer than 10 s to the previous chapter are merged into it; the merged chapter keeps the
+    earlier timestamp and the title of whichever scene is longer (the one viewers actually look for)."""
+    if pkg.get("format") != "long":
+        return []
+
+    def se(t):
+        return (t["start"], t["end"]) if isinstance(t, dict) else (t.start, t.end)
+
+    out: list[list] = []          # [sec, title, weight]
+    for k, (sc, t) in enumerate(zip(pkg["scenes"], timeline)):
+        start, end = se(t)
+        title = sc.get("chapter") or ("Official Sources" if sc.get("type") == "outro" else None)
+        title = _clean_chapter(title or _fallback_chapter(sc))
+        weight = end - start
+        sec = 0 if not out else int(start + 0.999)     # round up: never before the scene starts
+        if out and sec - out[-1][0] < MIN_CHAPTER_SEC:
+            if weight > out[-1][2]:
+                out[-1][1], out[-1][2] = title, weight
+            continue
+        out.append([sec, title, weight])
+    end = se(timeline[len(pkg["scenes"]) - 1])[1]
+    while len(out) > 1 and end - out[-1][0] < MIN_CHAPTER_SEC:
+        out.pop()                                       # last chapter must also be >= 10 s
+    return [(sec, title) for sec, title, _ in out] if len(out) >= MIN_CHAPTERS else []
+
+
+def fmt_ts(sec: int, long_video: bool = False) -> str:
+    h, rem = divmod(int(sec), 3600)
+    m, s_ = divmod(rem, 60)
+    return f"{h}:{m:02}:{s_:02}" if (h or long_video) else f"{m:02}:{s_:02}"
+
+
+def chapters_text(chs: list[tuple[int, str]]) -> str:
+    hours = bool(chs) and chs[-1][0] >= 3600
+    return "\n".join(f"{fmt_ts(sec, hours)} {title}" for sec, title in chs)
+
+
 def srt(chunks: list[tuple]) -> str:
     def ts(x: float) -> str:
         ms = int(round(x * 1000))
@@ -175,7 +238,10 @@ def render_next() -> bool:
     t0 = time.time()
     try:
         out = render_package(p, with_voice=True)
-        db.pkg_update(p["id"], status="ready", video_path=out["video"], thumb_path=out["thumb"], error="")
+        data = p["data"]
+        data["_chapters"] = chapters(data, out["timeline"])
+        data["_duration"] = round(out["duration"], 2)
+        db.pkg_update(p["id"], status="ready", video_path=out["video"], thumb_path=out["thumb"], error="", data=data)
         events.info(f"الفيديو جاهز ({out['duration']:.0f} ث، اتعمل في {time.time() - t0:.0f} ث): {title}", p["channel"])
     except Exception as e:
         attempts = (p.get("attempts") or 0) + 1
@@ -196,6 +262,11 @@ def youtube_meta(pkg: dict) -> dict:
             meta["title"] = meta["title"].rstrip() + " #Shorts"
         else:
             desc = desc.rstrip() + "\n\n#Shorts"
+    chs = pkg.get("_chapters") or []
+    if chs and "\n00:00 " not in "\n" + desc:
+        block = "Chapters:\n" + chapters_text(chs)
+        head, sep, rest = desc.partition("\n\n")      # right after the opening paragraph (what search shows)
+        desc = f"{head}\n\n{block}\n\n{rest}" if sep else f"{desc.rstrip()}\n\n{block}"
     for src in pkg.get("sources", []):
         if src.get("url") and src["url"] not in desc:
             desc = desc.rstrip() + f"\nSource: {src['url']}"
