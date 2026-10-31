@@ -40,7 +40,7 @@ def tick() -> None:
     s = config.load_settings()
     db.kv_set("worker_heartbeat", time.time())
 
-    if drive_ready() and _due("import", 300):
+    if drive_ready() and _due("import", 120):
         try:
             pipeline.import_from_drive()
         except Exception as e:
@@ -108,7 +108,7 @@ def _upload_loop() -> None:
             _throttled_error("upload", f"مشكلة في الرفع: {e}")
             did = False
         if not did:
-            _stop.wait(20)
+            _stop.wait(10)
 
 
 def recover() -> None:

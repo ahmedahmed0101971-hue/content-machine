@@ -187,11 +187,45 @@ def render_next() -> bool:
 
 
 # ------------------------------------------------------------------ upload
+def youtube_meta(pkg: dict) -> dict:
+    """Final YouTube metadata: shorts get #Shorts, every video lists its official sources."""
+    meta = dict(pkg["youtube"])
+    desc = meta.get("description", "")
+    if pkg.get("format") == "short" and "#shorts" not in (meta["title"] + desc).lower():
+        if len(meta["title"]) <= 92:
+            meta["title"] = meta["title"].rstrip() + " #Shorts"
+        else:
+            desc = desc.rstrip() + "\n\n#Shorts"
+    for src in pkg.get("sources", []):
+        if src.get("url") and src["url"] not in desc:
+            desc = desc.rstrip() + f"\nSource: {src['url']}"
+    meta["description"] = desc[:4900]
+    return meta
+
+
+def _quota_error(e: Exception) -> bool:
+    t = str(e)
+    return any(k in t for k in ("quotaExceeded", "uploadLimitExceeded", "dailyLimitExceeded", "rateLimitExceeded"))
+
+
+def _next_pacific_midnight() -> float:
+    from zoneinfo import ZoneInfo
+    pt = datetime.now(ZoneInfo("America/Los_Angeles"))
+    nxt = (pt + timedelta(days=1)).replace(hour=0, minute=5, second=0, microsecond=0)
+    return nxt.timestamp()
+
+
 def upload_next() -> bool:
     s = config.load_settings()
     if s.get("emergency_stop"):
         return False
-    for p in db.pkg_list(status="ready", limit=50):
+    pause = db.kv_get("upload_pause_until", 0)
+    if pause and time.time() < pause:
+        return False
+    ready = db.pkg_list(status="ready", limit=50)
+    # urgent first, then whatever airs soonest
+    ready.sort(key=lambda r: (r.get("priority") != "urgent", r.get("publish_at") or "9999"))
+    for p in ready:
         ch = s["channels"][p["channel"]]
         if not ch.get("youtube", {}).get("connected"):
             continue   # stays 'ready' -> downloadable from the dashboard
@@ -204,7 +238,7 @@ def upload_next() -> bool:
         public_now = audited and pub <= now + timedelta(minutes=5)
         schedule = pub if (audited and not public_now) else None
         try:
-            vid = youtube.upload(p["channel"], p["video_path"], pkg["youtube"], schedule, public_now)
+            vid = youtube.upload(p["channel"], p["video_path"], youtube_meta(pkg), schedule, public_now)
             if p.get("thumb_path"):
                 try:
                     youtube.set_thumbnail(p["channel"], vid, p["thumb_path"])
@@ -230,9 +264,18 @@ def upload_next() -> bool:
                 events.warn(f"اترفع كفيديو خاص (Private) لحد ما جوجل توافق على مراجعة الـAPI: {pkg['youtube']['title']}",
                             p["channel"], notify=False)
             else:
-                events.info(f"اترفع على يوتيوب ({'منشور' if public_now else 'مجدول'}): {pkg['youtube']['title']}",
-                            p["channel"], notify=True)
+                when = "اتنشر علني دلوقتي" if public_now else \
+                    f"مجدول {pub.astimezone(package.ET).strftime('%b %d %I:%M %p')} ET"
+                events.info(f"{'🚨 عاجل · ' if p.get('priority') == 'urgent' else ''}اترفع على يوتيوب ({when}): "
+                            f"{pkg['youtube']['title']} · https://youtu.be/{vid}", p["channel"], notify=True)
         except Exception as e:
+            if _quota_error(e):
+                db.pkg_update(p["id"], status="ready", error=str(e)[:500])
+                until = _next_pacific_midnight()
+                db.kv_set("upload_pause_until", until)
+                events.error("يوتيوب: خلص حد الرفع اليومي للمشروع. الرفع هيكمّل لوحده بعد منتصف الليل بتوقيت كاليفورنيا "
+                             "(حوالي 9 الصبح القاهرة).", p["channel"], notify=True)
+                return False
             attempts = (p.get("attempts") or 0) + 1
             db.pkg_update(p["id"], status="ready", attempts=attempts, error=str(e)[:500])
             events.error(f"الرفع فشل لـ '{pkg['youtube']['title']}': {e}", p["channel"], notify=attempts >= 2)

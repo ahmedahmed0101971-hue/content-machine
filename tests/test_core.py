@@ -1,3 +1,4 @@
+import time
 import copy
 import json
 
@@ -203,3 +204,35 @@ def test_thumbnail_rules_and_no_truncation(tmp_path):
     p["thumbnail"] = {"tile_top": "NOVEMBER2026", "tile_value": "$1,234.56", "words": ["A", "B", "C", "D", "E"]}
     errs = package.validate(p, s)
     assert len([e for e in errs if "الصورة المصغرة" in e]) == 3
+
+
+def test_youtube_meta_shorts_and_sources():
+    p = load_sample("sample-short-cola")
+    p["youtube"]["title"] = "COLA 2027 confirmed"
+    m = pipeline.youtube_meta(p)
+    assert m["title"].endswith("#Shorts")
+    assert p["sources"][0]["url"] in m["description"]
+    assert p["youtube"]["title"] == "COLA 2027 confirmed"      # original untouched
+
+
+def test_upload_pauses_on_quota(clean_db, monkeypatch):
+    config.update_settings(lambda s: s.update({"youtube_audited": True}) or
+                           s["channels"]["money"]["youtube"].update({"connected": True}))
+    try:
+        p = load_sample("sample-short-cola")
+        p["id"] = "quota-test"
+        db.pkg_insert(p, "ready")
+        db.pkg_update("quota-test", video_path="/nonexistent.mp4")
+
+        def boom(*a, **k):
+            raise Exception('403 {"reason": "uploadLimitExceeded"}')
+        monkeypatch.setattr(pipeline.youtube, "upload", boom)
+        assert pipeline.upload_next() is False
+        got = db.pkg_get("quota-test")
+        assert got["status"] == "ready" and not got.get("attempts")
+        assert db.kv_get("upload_pause_until", 0) > time.time()
+        assert pipeline.upload_next() is False                     # paused
+    finally:
+        db.kv_set("upload_pause_until", 0)
+        config.update_settings(lambda s: s.update({"youtube_audited": False}) or
+                               s["channels"]["money"]["youtube"].update({"connected": False}))
