@@ -10,6 +10,7 @@ so slides change exactly when the voice moves to the next sentence block.
 from __future__ import annotations
 
 import math
+import os
 import re
 import subprocess
 from dataclasses import dataclass
@@ -196,7 +197,7 @@ class VideoRenderer:
     def render(self, out_path: str, progress=None) -> None:
         n = int(math.ceil(self.dur * FPS))
         cmd = ["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{self.W}x{self.H}",
-               "-r", str(FPS), "-i", "-", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+               "-r", str(FPS), "-i", "-", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-threads", os.environ.get("MACHINE_FFMPEG_THREADS", "2"),
                "-pix_fmt", "yuv420p", "-movflags", "+faststart", out_path]
         ff = subprocess.Popen(cmd, stdin=subprocess.PIPE)
         try:

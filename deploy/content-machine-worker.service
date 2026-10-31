@@ -11,9 +11,11 @@ EnvironmentFile=/etc/content-machine.env
 ExecStart=/opt/content-machine/.venv/bin/python -m machine worker
 Restart=always
 RestartSec=10
-Nice=5
-# keep rendering from starving the dashboard
-CPUWeight=80
+Nice=10
+# keep rendering gentle: never more than ~2 of the server's cores, never all the RAM
+CPUWeight=50
+CPUQuota=200%
+MemoryMax=5G
 
 [Install]
 WantedBy=multi-user.target

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import threading
 import time
 from datetime import datetime
@@ -10,7 +11,7 @@ from . import config, db, events, pipeline, radar
 from .package import ET
 
 log = logging.getLogger("machine.worker")
-RENDER_THREADS = 2
+RENDER_THREADS = max(1, int(os.environ.get("MACHINE_RENDER_THREADS", "1")))
 _stop = threading.Event()
 
 
