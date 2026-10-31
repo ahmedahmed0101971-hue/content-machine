@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% from "_macros.html" import pkg_card %}
+{% block title %}المراجعة{% endblock %}
+{% block body %}
+<header class="top">
+  <div>
+    <h1>المراجعة</h1>
+    <div class="sub">الماكينة: {% if OFFLINE %}وضع تجريبي{% elif (now - heartbeat) < 180 %}<span class="dot ok"></span>شغالة{% else %}<span class="dot bad"></span>مش بترد{% endif %}</div>
+  </div>
+  <span class="chip warn">{{ g.review|length }} بانتظارك</span>
+</header>
+
+<div class="row" role="group" aria-label="القنوات">
+  <a class="btn small {{ 'primary' if not ch else '' }}" href="{{ url_for('review') }}">كل القنوات</a>
+  {% for cid, c in S.channels.items() %}{% if c.enabled %}
+  <a class="btn small {{ 'primary' if ch == cid else '' }}" href="{{ url_for('review', ch=cid) }}">{{ c.name }}</a>
+  {% endif %}{% endfor %}
+</div>
+
+<h2 style="margin-top:22px">بانتظار مراجعتك</h2>
+{% for p in g.review %}{{ pkg_card(p, S, STATUS_AR, csrf) }}{% else %}<div class="card empty">مفيش حاجة مستنياك دلوقتي ✨</div>{% endfor %}
+
+{% if g.ready %}
+<h2>جاهز للرفع</h2>
+{% if not S.channels.values()|selectattr('youtube.connected')|list %}<p class="sub">يوتيوب لسه مش مربوط، فالفيديوهات بتستنى هنا. تقدر تنزّلها وترفعها بإيدك.</p>{% endif %}
+{% for p in g.ready %}{{ pkg_card(p, S, STATUS_AR, csrf) }}{% endfor %}
+{% endif %}
+
+{% if g.working %}
+<h2>في الطابور</h2>
+<div class="card"><div class="tablewrap"><table>
+<tr><th>الفيديو</th><th>الحالة</th><th>النشر</th></tr>
+{% for p in g.working %}
+<tr><td class="ltr"><a href="{{ url_for('pkg_detail', pid=p.id) }}">{{ p.data.youtube.title }}</a></td><td>{{ STATUS_AR.get(p.status, p.status) }}</td><td>{{ p.publish_at|cairo }}</td></tr>
+{% endfor %}
+</table></div></div>
+{% endif %}
+
+{% if g.failed %}
+<h2>فشل</h2>
+{% for p in g.failed %}{{ pkg_card(p, S, STATUS_AR, csrf) }}{% endfor %}
+{% endif %}
+
+<h2>آخر المنشور</h2>
+{% for p in g.done %}{{ pkg_card(p, S, STATUS_AR, csrf, actions=false) }}{% else %}<div class="card empty">لسه مفيش فيديوهات اترفعت</div>{% endfor %}
+
+<details class="card">
+  <summary>إضافة باكدج يدوي (ملف JSON)</summary>
+  <form method="post" action="{{ url_for('upload_package') }}" enctype="multipart/form-data" class="row" style="margin-top:8px">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="file" name="file" accept=".json,application/json" required>
+    <button class="btn small">إضافة</button>
+  </form>
+</details>
+{% endblock %}

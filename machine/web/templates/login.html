@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}دخول{% endblock %}
+{% block body %}
+<div class="card" style="max-width:420px;margin:60px auto">
+  <h1 style="margin-top:0">ماكينة المحتوى</h1>
+  <form method="post">
+    <label for="pw">كلمة السر</label>
+    <input id="pw" name="pw" type="password" autocomplete="current-password" required autofocus>
+    <p><button class="btn primary" style="width:100%">دخول</button></p>
+  </form>
+</div>
+{% endblock %}

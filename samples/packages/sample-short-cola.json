@@ -1,0 +1,77 @@
+{
+  "schema": 1,
+  "id": "sample-money-short1-cola-2027",
+  "channel": "money",
+  "format": "short",
+  "slot": "short1",
+  "date": "2026-11-02",
+  "priority": "normal",
+  "scenes": [
+    {
+      "type": "headline",
+      "vo": "If you get Social Security, your check is about to change.",
+      "pill": "OFFICIAL UPDATE",
+      "lines": [
+        {"text": "IF YOU GET", "color": "white"},
+        {"text": "SOCIAL SECURITY,", "color": "accent"},
+        {"text": "YOUR CHECK", "color": "white", "cue": "your check"}
+      ],
+      "sub": {"text": "IS ABOUT TO CHANGE", "color": "accent2", "cue": "about to change"}
+    },
+    {
+      "type": "big_number",
+      "vo": "It's official. The Social Security Administration confirmed a 3.6 percent raise for 2027.",
+      "label": "IT'S OFFICIAL",
+      "value": 3.6, "suffix": "%", "decimals": 1,
+      "caption": "RAISE FOR 2027"
+    },
+    {
+      "type": "big_number",
+      "vo": "For the average retiree, that's about 75 dollars more every month.",
+      "label": "AVERAGE RETIREE",
+      "value": 75, "prefix": "+$", "decimals": 0,
+      "caption": "MORE EVERY MONTH"
+    },
+    {
+      "type": "cards",
+      "vo": "SSI payments go up starting December 31. Social Security checks rise in January.",
+      "label": "WHEN IT HITS",
+      "cards": [
+        {"label": "SSI", "value": "Dec 31, 2026", "color": "accent2", "cue": "SSI payments"},
+        {"label": "SOCIAL SECURITY", "value": "January 2027", "color": "accent", "cue": "Social Security checks"}
+      ]
+    },
+    {
+      "type": "checklist",
+      "vo": "Want to see your new amount early? Create a my Social Security account and turn on paperless notices by November 18.",
+      "title": "DO THIS BEFORE",
+      "big": "NOV 18",
+      "items": [
+        {"text": "Create a my Social Security account", "cue": "Create"},
+        {"text": "Turn on paperless notices", "cue": "turn on"}
+      ]
+    },
+    {
+      "type": "outro",
+      "vo": "The official source is in the description. Follow for daily benefit updates.",
+      "kicker": "OFFICIAL SOURCE",
+      "domain": "ssa.gov",
+      "cta": "Follow for daily benefit updates"
+    }
+  ],
+  "facts": [
+    {"value": "3.6", "source": "https://www.ssa.gov/news/en/press/releases/2026-10-14.html", "kind": "literal"},
+    {"value": "2027", "source": "https://www.ssa.gov/news/en/press/releases/2026-10-14.html", "kind": "literal"},
+    {"value": "75", "source": "https://www.ssa.gov/news/en/press/releases/2026-10-14.html", "kind": "literal"},
+    {"value": "December 31", "source": "https://www.ssa.gov/news/en/press/releases/2026-10-14.html", "kind": "literal"},
+    {"value": "2026", "source": "https://www.ssa.gov/news/en/press/releases/2026-10-14.html", "kind": "literal"},
+    {"value": "November 18", "source": "https://www.ssa.gov/news/en/press/releases/2026-10-14.html", "kind": "literal"}
+  ],
+  "sources": [{"name": "SSA 2027 COLA press release", "url": "https://www.ssa.gov/news/en/press/releases/2026-10-14.html"}],
+  "youtube": {
+    "title": "Social Security 2027 Raise CONFIRMED: 3.6% #shorts",
+    "description": "SSA confirmed a 3.6% COLA for 2027.\nOfficial source: https://www.ssa.gov/news/en/press/releases/2026-10-14.html\nAI-assisted; figures checked against the SSA release. Not financial advice.",
+    "tags": ["social security", "cola 2027", "ssi"],
+    "category_id": "25"
+  }
+}

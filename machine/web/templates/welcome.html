@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}أهلاً{% endblock %}
+{% block body %}
+<div class="card" style="max-width:460px;margin:40px auto">
+  <h1 style="margin-top:0">أهلاً بيك 👋</h1>
+  <p class="muted">أول مرة تفتح اللوحة. اختار كلمة سر قوية، هتدخل بيها كل مرة.</p>
+  <form method="post">
+    <label for="pw">كلمة السر (8 حروف على الأقل)</label>
+    <input id="pw" name="pw" type="password" autocomplete="new-password" required>
+    <label for="pw2">اكتبها تاني</label>
+    <input id="pw2" name="pw2" type="password" autocomplete="new-password" required>
+    <p><button class="btn primary" style="width:100%">احفظ وابدأ الإعداد</button></p>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}الإعدادات{% endblock %}
+{% block body %}
+<header class="top"><div><h1>الإعدادات</h1><div class="sub">الإعداد الأول والربط بجوجل: <a href="{{ url_for('setup') }}">صفحة الإعداد ←</a></div></div></header>
+
+<form method="post" class="card" id="global">
+  <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="section" value="global">
+  <h2>عام</h2>
+  <div class="switch"><div><strong>🛑 إيقاف الطوارئ</strong><div class="sub">يوقف أي رفع على يوتيوب فوراً (التجهيز بيكمل عادي)</div></div><input type="checkbox" name="emergency_stop" {{ 'checked' if S.emergency_stop }}></div>
+  <div class="switch"><div><strong>جوجل وافقت على مراجعة الـAPI</strong><div class="sub">فعّلها بس لما توصلك موافقة جوجل. قبلها الفيديوهات بتترفع خاصة (Private)</div></div><input type="checkbox" name="youtube_audited" {{ 'checked' if S.youtube_audited }}></div>
+  <label for="tg_token">تنبيهات تيليجرام (اختياري) · Bot token</label>
+  <input id="tg_token" class="ltr" type="text" name="tg_token" value="{{ S.telegram.bot_token }}" autocomplete="off">
+  <label for="tg_chat">Chat ID</label>
+  <input id="tg_chat" class="ltr" type="text" name="tg_chat" value="{{ S.telegram.chat_id }}" autocomplete="off">
+  <p><button class="btn primary">حفظ</button></p>
+</form>
+
+{% for cid, c in S.channels.items() %}
+<form method="post" class="card" id="{{ cid }}">
+  <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="section" value="{{ cid }}">
+  <div class="row between"><h2>{{ c.name }}</h2>{% if c.youtube.connected %}<span class="chip ok">{{ c.youtube.channel_title }}</span>{% else %}<span class="chip warn">يوتيوب مش مربوط</span>{% endif %}</div>
+  <div class="switch"><div><strong>القناة شغالة</strong><div class="sub">لما تتقفل: مفيش سحب أخبار ولا فيديوهات جديدة ليها</div></div><input type="checkbox" name="enabled" {{ 'checked' if c.enabled }}></div>
+  <div class="switch"><div><strong>نشر آلي من غير مراجعتي</strong><div class="sub">بس للفيديوهات اللي كل أرقامها اتلقت حرفياً في المصدر الرسمي. الباقي يستناك.</div></div><input type="checkbox" name="auto_publish" {{ 'checked' if c.auto_publish }}></div>
+
+  <label for="brand_{{ cid }}">الاسم اللي بيظهر على الفيديو</label>
+  <input id="brand_{{ cid }}" class="ltr" type="text" name="brand" value="{{ c.theme.brand }}" maxlength="40">
+
+  <label for="voice_{{ cid }}">الصوت</label>
+  <select id="voice_{{ cid }}" name="voice">{% for v, label in voices %}<option value="{{ v }}" {{ 'selected' if c.voice.name == v }}>{{ label }}</option>{% endfor %}</select>
+  <label for="rate_{{ cid }}">سرعة القراءة ({{ c.voice.rate }})</label>
+  <input id="rate_{{ cid }}" type="number" name="rate" min="0.75" max="1.3" step="0.05" value="{{ c.voice.rate }}">
+
+  <label>مواعيد النشر (بتوقيت نيويورك)</label>
+  <div class="grid">
+    {% for slot, hhmm in c.slots.items() %}
+    <div><label for="slot_{{ cid }}_{{ slot }}" style="margin-top:0">{{ {'short1':'شورت 1','short2':'شورت 2','longA':'طويل A · خبر اليوم','longB':'طويل B · دليل','longC':'طويل C · سلسلة اليوم'}.get(slot, slot) }}</label>
+    <input id="slot_{{ cid }}_{{ slot }}" type="time" name="slot_{{ slot }}" value="{{ hhmm }}"></div>
+    {% endfor %}
+  </div>
+  <div class="grid">
+    <div><label for="ml_{{ cid }}">أقصى عدد فيديوهات طويلة في اليوم</label><input id="ml_{{ cid }}" type="number" name="max_long" min="0" max="10" value="{{ c.limits.max_long }}"></div>
+    <div><label for="ms_{{ cid }}">أقصى عدد شورتس في اليوم</label><input id="ms_{{ cid }}" type="number" name="max_short" min="0" max="10" value="{{ c.limits.max_short }}"></div>
+  </div>
+  <p class="row"><button class="btn primary">حفظ</button></p>
+</form>
+<form method="post" action="{{ url_for('test_voice') }}" target="_blank" class="card row">
+  <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="voice" value="{{ c.voice.name }}"><input type="hidden" name="rate" value="{{ c.voice.rate }}">
+  <span class="sub">اسمع الصوت المحفوظ لـ{{ c.name }}:</span><button class="btn small">▶ عينة صوت</button>
+</form>
+{% endfor %}
+{% endblock %}

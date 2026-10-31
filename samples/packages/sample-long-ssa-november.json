@@ -1,0 +1,113 @@
+{
+  "schema": 1,
+  "id": "sample-money-longA-ssa-november-dates",
+  "channel": "money",
+  "format": "long",
+  "slot": "longA",
+  "date": "2026-11-02",
+  "priority": "normal",
+  "scenes": [
+    {
+      "type": "headline",
+      "vo": "Your November Social Security dates are here, and one of them moved.",
+      "pill": "PAYMENT UPDATE",
+      "lines": [
+        {"text": "Your November", "color": "white"},
+        {"text": "Social Security", "color": "accent"},
+        {"text": "dates are here.", "color": "white"}
+      ],
+      "sub": {"text": "And one of them moved.", "color": "accent2", "cue": "one of them moved"},
+      "tile": {"header": "NOV", "from": "11", "value": "10", "color": "accent2"}
+    },
+    {
+      "type": "date_list",
+      "vo": "If you started benefits before May 1997, you're paid November 3. Birthday between the 1st and 10th? November 10. The 11th to the 20th: November 18. And the 21st to the 31st: November 25.",
+      "title": "WHEN YOU GET PAID",
+      "rows": [
+        {"date": "NOV 3", "weekday": "TUESDAY", "text": "Started benefits before May 1997", "color": "accent", "cue": "If you started"},
+        {"date": "NOV 10", "weekday": "TUESDAY · moved", "text": "Birthday 1st – 10th", "color": "accent2", "cue": "Birthday between"},
+        {"date": "NOV 18", "weekday": "WEDNESDAY", "text": "Birthday 11th – 20th", "color": "accent", "cue": "The 11th"},
+        {"date": "NOV 25", "weekday": "WEDNESDAY", "text": "Birthday 21st – 31st", "color": "accent", "cue": "And the 21st"}
+      ],
+      "calendar": {
+        "month": "November", "year": 2026, "first_weekday": 0, "days": 30,
+        "highlights": [
+          {"day": 3, "color": "accent", "cue": "If you started"},
+          {"day": 10, "color": "accent2", "cue": "Birthday between"},
+          {"day": 18, "color": "accent", "cue": "The 11th"},
+          {"day": 25, "color": "accent", "cue": "And the 21st"}
+        ],
+        "strikes": [{"day": 11, "cue": "Birthday between"}]
+      }
+    },
+    {
+      "type": "before_after",
+      "vo": "Why the 10th? The usual date is Wednesday, November 11. But that's Veterans Day, a federal holiday, so the payment goes out one day early.",
+      "label": "WHY NOVEMBER 10?",
+      "before": "NOV 11", "after": "NOV 10", "after_color": "accent2",
+      "badge": "VETERANS DAY · FEDERAL HOLIDAY", "badge_cue": "Veterans Day",
+      "note": "Payments due on a holiday go out the business day before.", "note_cue": "so the payment",
+      "before_cue": "The usual date", "after_cue": "one day early"
+    },
+    {
+      "type": "headline",
+      "vo": "On SSI? November's payment already went out on October 30, because November 1 falls on a Sunday.",
+      "pill": "SSI", "pill_color": "accent2",
+      "lines": [
+        {"text": "November's payment", "color": "white"},
+        {"text": "already went out:", "color": "white"},
+        {"text": "FRIDAY, OCT 30", "color": "accent2", "cue": "October 30"}
+      ],
+      "sub": {"text": "Nov 1 falls on a Sunday.", "color": "muted", "cue": "because"},
+      "tile": {"header": "OCT", "value": "30", "header_color": "accent2"}
+    },
+    {
+      "type": "big_number",
+      "vo": "And your raise is coming. The 3.6 percent increase starts with SSI on December 31, and with Social Security checks in January.",
+      "label": "COMING NEXT: YOUR RAISE",
+      "value": 3.6, "prefix": "+", "suffix": "%", "decimals": 1, "color": "accent",
+      "caption": "2027 cost-of-living adjustment",
+      "cards": [
+        {"label": "SSI", "value": "Dec 31, 2026", "color": "accent2", "cue": "SSI on December"},
+        {"label": "SOCIAL SECURITY", "value": "January 2027", "color": "accent", "cue": "Social Security checks"}
+      ]
+    },
+    {
+      "type": "outro",
+      "vo": "These dates come from the official SSA payment schedule. Subscribe so you never miss a payment date.",
+      "kicker": "CHECK THE OFFICIAL SCHEDULE",
+      "domain": "ssa.gov",
+      "cta": "Subscribe so you never miss a payment date"
+    }
+  ],
+  "facts": [
+    {"value": "May 1997", "source": "https://www.ssa.gov/pubs/EN-05-10031-2026.pdf", "kind": "literal"},
+    {"value": "1st – 10th", "source": "https://www.ssa.gov/pubs/EN-05-10031-2026.pdf", "kind": "literal"},
+    {"value": "11th – 20th", "source": "https://www.ssa.gov/pubs/EN-05-10031-2026.pdf", "kind": "literal"},
+    {"value": "21st – 31st", "source": "https://www.ssa.gov/pubs/EN-05-10031-2026.pdf", "kind": "literal"},
+    {"value": "Nov 3", "source": "https://www.ssa.gov/pubs/EN-05-10031-2026.pdf", "kind": "derived", "note": "3rd of the month, Tuesday"},
+    {"value": "Nov 10", "source": "https://www.ssa.gov/pubs/EN-05-10031-2026.pdf", "kind": "derived", "note": "2nd Wednesday Nov 11 is Veterans Day; paid the business day before"},
+    {"value": "Nov 11", "source": "https://www.ssa.gov/pubs/EN-05-10031-2026.pdf", "kind": "derived", "note": "2nd Wednesday of November 2026"},
+    {"value": "Nov 18", "source": "https://www.ssa.gov/pubs/EN-05-10031-2026.pdf", "kind": "derived", "note": "3rd Wednesday"},
+    {"value": "Nov 25", "source": "https://www.ssa.gov/pubs/EN-05-10031-2026.pdf", "kind": "derived", "note": "4th Wednesday"},
+    {"value": "Oct 30", "source": "https://www.ssa.gov/pubs/EN-05-10031-2026.pdf", "kind": "derived", "note": "Nov 1 is a Sunday; paid the business day before"},
+    {"value": "Nov 1", "source": "https://www.ssa.gov/pubs/EN-05-10031-2026.pdf", "kind": "derived", "note": "calendar"},
+    {"value": "3.6", "source": "https://www.ssa.gov/news/en/press/releases/2026-10-14.html", "kind": "literal"},
+    {"value": "December 31", "source": "https://www.ssa.gov/news/en/press/releases/2026-10-14.html", "kind": "literal"},
+    {"value": "January 2027", "source": "https://www.ssa.gov/news/en/press/releases/2026-10-14.html", "kind": "literal"},
+    {"value": "2027", "source": "https://www.ssa.gov/news/en/press/releases/2026-10-14.html", "kind": "literal"},
+    {"value": "2026", "source": "https://www.ssa.gov/pubs/EN-05-10031-2026.pdf", "kind": "literal"}
+  ],
+  "sources": [
+    {"name": "SSA 2026 payment schedule", "url": "https://www.ssa.gov/pubs/EN-05-10031-2026.pdf"},
+    {"name": "SSA 2027 COLA press release", "url": "https://www.ssa.gov/news/en/press/releases/2026-10-14.html"}
+  ],
+  "ticker": ["NOV 3 · benefits started before May 1997", "NOV 10 · birthdays 1st–10th", "NOV 18 · birthdays 11th–20th", "NOV 25 · birthdays 21st–31st", "SSI for November · paid OCT 30", "2027 raise · 3.6%"],
+  "youtube": {
+    "title": "Social Security November 2026 Payment Dates (One Date Moved!)",
+    "description": "Your November 2026 Social Security and SSI payment dates, from the official SSA schedule.\n\nOfficial sources:\nhttps://www.ssa.gov/pubs/EN-05-10031-2026.pdf\nhttps://www.ssa.gov/news/en/press/releases/2026-10-14.html\n\nThis video was produced with AI assistance (script drafting, narration voice). Every date was checked against the official SSA schedule. Not financial or legal advice.",
+    "tags": ["social security november 2026", "social security payment dates", "ssi payment november", "cola 2027"],
+    "category_id": "25"
+  },
+  "thumbnail": {"kicker": "Payment date moved", "big": "NOV 10", "small": "Social Security · November 2026", "color": "accent2"}
+}

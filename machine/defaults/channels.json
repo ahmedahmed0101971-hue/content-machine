@@ -1,0 +1,89 @@
+{
+  "money": {
+    "name": "فلوسك ومزاياك",
+    "enabled": true,
+    "auto_publish": false,
+    "youtube": {"connected": false, "channel_title": "", "channel_id": ""},
+    "theme": {
+      "brand": "MONEY & BENEFITS DAILY",
+      "badge": "$",
+      "accent": "#2EE59D",
+      "accent2": "#FFC233",
+      "alert": "#FF4D5E",
+      "bg_top": "#080D1A",
+      "bg_bot": "#0E192F",
+      "ticker_label": "LATEST"
+    },
+    "voice": {"name": "en-US-Chirp3-HD-Charon", "rate": 1.0},
+    "slots": {"short1": "07:00", "longA": "09:00", "longB": "12:00", "longC": "15:00", "short2": "18:00"},
+    "limits": {"max_long": 4, "max_short": 5},
+    "blocked_words": ["election", "candidate", "democrat", "republican", "trump", "biden", "cure", "miracle", "free money", "stimulus check", "celebrity"],
+    "priority_keywords": ["social security", "ssi", "cola", "medicare", "part b", "irs", "401(k)", "tax bracket", "standard deduction", "i bond", "scam", "fraud", "payment", "benefit"],
+    "sources": [
+      {"id": "google_trends", "name": "Google Trends · أمريكا", "type": "rss", "role": "trends", "url": "https://trends.google.com/trending/rss?geo=US", "enabled": true},
+      {"id": "ssa_press", "name": "الضمان الاجتماعي · SSA", "type": "html_links", "url": "https://www.ssa.gov/news/en/press/releases/", "link_contains": "/news/en/press/releases/20", "enabled": true},
+      {"id": "ftc_consumer", "name": "تحذيرات المستهلك · FTC", "type": "rss", "url": "https://www.consumer.ftc.gov/blog/gd-rss.xml", "enabled": true},
+      {"id": "ftc_press", "name": "بيانات FTC لحماية المستهلك", "type": "rss", "url": "https://www.ftc.gov/feeds/press-release-consumer-protection.xml", "enabled": true},
+      {"id": "irs_news", "name": "الضرائب · IRS", "type": "html_links", "url": "https://www.irs.gov/newsroom", "link_contains": "/newsroom/", "enabled": true},
+      {"id": "cms_news", "name": "Medicare · CMS", "type": "html_links", "url": "https://www.cms.gov/newsroom", "link_contains": "/newsroom/", "enabled": true},
+      {"id": "treasury_press", "name": "وزارة الخزانة", "type": "html_links", "url": "https://home.treasury.gov/news/press-releases", "link_contains": "/news/press-releases/", "enabled": true},
+      {"id": "bls_news", "name": "إحصاءات العمل · BLS", "type": "rss", "url": "https://www.bls.gov/feed/news_release.rss", "enabled": true}
+    ]
+  },
+  "recalls": {
+    "name": "تنبيهات السحب والسلامة",
+    "enabled": false,
+    "auto_publish": false,
+    "youtube": {"connected": false, "channel_title": "", "channel_id": ""},
+    "theme": {
+      "brand": "RECALL ALERT DAILY",
+      "badge": "!",
+      "accent": "#FF8A3D",
+      "accent2": "#FFD166",
+      "alert": "#FF4D5E",
+      "bg_top": "#120B0A",
+      "bg_bot": "#231512",
+      "ticker_label": "RECALLS"
+    },
+    "voice": {"name": "en-US-Chirp3-HD-Aoede", "rate": 1.0},
+    "slots": {"short1": "08:00", "longA": "11:00", "short2": "17:00"},
+    "limits": {"max_long": 2, "max_short": 4},
+    "blocked_words": ["election", "candidate", "lawsuit settlement payout", "celebrity"],
+    "priority_keywords": ["recall", "salmonella", "listeria", "e. coli", "airbag", "fire hazard", "choking", "infant", "baby", "car seat", "class i"],
+    "sources": [
+      {"id": "google_trends", "name": "Google Trends · أمريكا", "type": "rss", "role": "trends", "url": "https://trends.google.com/trending/rss?geo=US", "enabled": true},
+      {"id": "fda_food", "name": "سحب الأغذية · FDA", "type": "json_api", "url": "https://api.fda.gov/food/enforcement.json?sort=report_date:desc&limit=25", "items_path": "results", "fields": {"id": "recall_number", "title": "product_description", "date": "report_date", "extra": "reason_for_recall"}, "default_url": "https://www.fda.gov/safety/recalls-market-withdrawals-safety-alerts", "enabled": true},
+      {"id": "fda_drug", "name": "سحب الأدوية · FDA", "type": "json_api", "url": "https://api.fda.gov/drug/enforcement.json?sort=report_date:desc&limit=25", "items_path": "results", "fields": {"id": "recall_number", "title": "product_description", "date": "report_date", "extra": "reason_for_recall"}, "default_url": "https://www.fda.gov/safety/recalls-market-withdrawals-safety-alerts", "enabled": true},
+      {"id": "cpsc", "name": "سحب المنتجات · CPSC", "type": "json_api", "url": "https://www.saferproducts.gov/RestWebServices/Recall?format=json&RecallDateStart={days_ago_14}", "items_path": "", "fields": {"id": "RecallID", "title": "Title", "date": "RecallDate", "url": "URL"}, "enabled": true},
+      {"id": "fsis", "name": "سحب اللحوم · USDA FSIS", "type": "json_api", "url": "https://www.fsis.usda.gov/fsis/api/recall/v/1", "items_path": "", "fields": {"id": "field_recall_number", "title": "field_title", "date": "field_recall_date", "url": "field_recall_url"}, "enabled": true},
+      {"id": "nhtsa_press", "name": "سحب العربيات · NHTSA", "type": "html_links", "url": "https://www.nhtsa.gov/press-releases", "link_contains": "/press-releases/", "enabled": true}
+    ]
+  },
+  "sky": {
+    "name": "السماء والفضاء النهارده",
+    "enabled": false,
+    "auto_publish": false,
+    "youtube": {"connected": false, "channel_title": "", "channel_id": ""},
+    "theme": {
+      "brand": "SKY TONIGHT USA",
+      "badge": "★",
+      "accent": "#7CC8FF",
+      "accent2": "#C9A7FF",
+      "alert": "#FF6B9A",
+      "bg_top": "#05061A",
+      "bg_bot": "#0E1033",
+      "ticker_label": "TONIGHT"
+    },
+    "voice": {"name": "en-US-Chirp3-HD-Puck", "rate": 1.0},
+    "slots": {"short1": "09:00", "longA": "13:00", "short2": "19:00"},
+    "limits": {"max_long": 2, "max_short": 4},
+    "blocked_words": ["astrology", "horoscope", "doomsday", "end of the world", "election"],
+    "priority_keywords": ["aurora", "northern lights", "geomagnetic storm", "meteor", "eclipse", "launch", "comet", "supermoon"],
+    "sources": [
+      {"id": "google_trends", "name": "Google Trends · أمريكا", "type": "rss", "role": "trends", "url": "https://trends.google.com/trending/rss?geo=US", "enabled": true},
+      {"id": "swpc_kp", "name": "توقعات الشفق · NOAA", "type": "swpc_kp", "url": "https://services.swpc.noaa.gov/products/noaa-planetary-k-index-forecast.json", "default_url": "https://www.swpc.noaa.gov/products/aurora-30-minute-forecast", "enabled": true},
+      {"id": "swpc_alerts", "name": "تنبيهات الطقس الفضائي · NOAA", "type": "json_api", "url": "https://services.swpc.noaa.gov/products/alerts.json", "items_path": "", "fields": {"id": "product_id", "title": "message", "date": "issue_datetime"}, "default_url": "https://www.swpc.noaa.gov/", "enabled": true},
+      {"id": "nasa_news", "name": "أخبار NASA", "type": "rss", "url": "https://www.nasa.gov/news-release/feed/", "enabled": true}
+    ]
+  }
+}

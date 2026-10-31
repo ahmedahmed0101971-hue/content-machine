@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}السجل{% endblock %}
+{% block body %}
+<header class="top"><div><h1>السجل</h1><div class="sub">كل اللي الماكينة عملته، بالترتيب.</div></div></header>
+<div class="row">
+  <a class="btn small {{ 'primary' if not level }}" href="{{ url_for('log_page') }}">الكل</a>
+  <a class="btn small {{ 'primary' if level == 'error' }}" href="{{ url_for('log_page', level='error') }}">الأخطاء</a>
+  <a class="btn small {{ 'primary' if level == 'warn' }}" href="{{ url_for('log_page', level='warn') }}">التنبيهات</a>
+</div>
+
+<div class="card"><div class="tablewrap"><table>
+<tr><th>الوقت</th><th>القناة</th><th>اللي حصل</th></tr>
+{% for e in events %}
+<tr><td class="sub" style="white-space:nowrap">{{ e.ts|cairo }}</td><td>{{ S.channels[e.channel].name if e.channel in S.channels else '—' }}</td>
+<td>{% if e.level == 'error' %}<span class="chip err">خطأ</span> {% elif e.level == 'warn' %}<span class="chip warn">تنبيه</span> {% endif %}{{ e.message }}</td></tr>
+{% else %}<tr><td colspan="3" class="empty">السجل فاضي</td></tr>{% endfor %}
+</table></div>
+<p class="sub">لو فيه خطأ مش فاهمه: انسخه وابعته لـClaude في المحادثة.</p></div>
+
+<h2>الفيديوهات</h2>
+<div class="card"><div class="tablewrap"><table>
+<tr><th>الفيديو</th><th>الحالة</th><th>النشر</th></tr>
+{% for p in hist %}
+<tr><td class="ltr"><a href="{{ url_for('pkg_detail', pid=p.id) }}">{{ p.data.youtube.title }}</a>{% if p.youtube_id %} · <a href="https://youtu.be/{{ p.youtube_id }}" target="_blank" rel="noopener">YouTube ↗</a>{% endif %}</td>
+<td>{{ STATUS_AR.get(p.status, p.status) }}</td><td class="sub">{{ p.publish_at|cairo }}</td></tr>
+{% else %}<tr><td colspan="3" class="empty">لسه مفيش</td></tr>{% endfor %}
+</table></div></div>
+
+{% for cid, a in analytics.items() %}{% if a and a.rows %}
+<h2>إحصائيات {{ S.channels[cid].name }} <span class="sub">({{ a.start }} → {{ a.end }})</span></h2>
+<div class="card"><div class="tablewrap"><table>
+<tr><th>الفيديو</th><th>مشاهدات</th><th>دقائق مشاهدة</th><th>متوسط المشاهدة</th><th>مشتركين</th></tr>
+{% for r in a.rows[:30] %}
+<tr><td class="ltr">{{ r.title or r.video }}</td><td>{{ r.views }}</td><td>{{ r.estimatedMinutesWatched }}</td><td>{{ r.averageViewPercentage|round(0) }}%</td><td>{{ r.subscribersGained }}</td></tr>
+{% endfor %}
+</table></div></div>
+{% endif %}{% endfor %}
+{% endblock %}

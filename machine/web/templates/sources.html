@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}المصادر{% endblock %}
+{% block body %}
+<header class="top"><div><h1>المصادر</h1><div class="sub">الرادار بيقرأ العناوين بس، والفحص بيفتح الصفحة الرسمية كاملة.</div></div></header>
+{% for cid, c in S.channels.items() %}
+<form method="post" class="card" id="{{ cid }}">
+  <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="channel" value="{{ cid }}">
+  <div class="row between"><h2>{{ c.name }}</h2>{% if not c.enabled %}<span class="chip">القناة متوقفة</span>{% endif %}</div>
+  {% for src in c.sources %}
+  {% set st = status.get((cid, src.id)) %}
+  <div class="switch">
+    <div>
+      <strong>{{ src.name }}</strong>
+      <div class="sub">
+        {% if not st %}لسه ماتجربش
+        {% elif st.last_error %}<span class="dot bad"></span>فيه مشكلة: <span class="ltr">{{ st.last_error[:120] }}</span>
+        {% else %}<span class="dot ok"></span>يعمل · {{ st.last_count }} عنوان · {{ st.last_ok|ago }}{% endif %}
+      </div>
+    </div>
+    <input type="checkbox" name="src_{{ src.id }}" {{ 'checked' if src.enabled }} aria-label="تفعيل {{ src.name }}">
+  </div>
+  {% endfor %}
+  <label for="blocked_{{ cid }}">مواضيع ممنوعة (افصل بفاصلة). أي خبر أو سكربت فيه الكلمات دي بيتوقف.</label>
+  <textarea id="blocked_{{ cid }}" class="ltr" name="blocked">{{ c.blocked_words|join(', ') }}</textarea>
+  <label for="prio_{{ cid }}">كلمات الأخبار المهمة (بتخلي الخبر "مهم" وتبعتلك تنبيه)</label>
+  <textarea id="prio_{{ cid }}" class="ltr" name="priority">{{ c.priority_keywords|join(', ') }}</textarea>
+  <p><button class="btn primary">حفظ</button></p>
+</form>
+{% endfor %}
+{% endblock %}

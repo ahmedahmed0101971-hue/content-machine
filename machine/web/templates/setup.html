@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}الإعداد{% endblock %}
+{% block body %}
+{% set g = S.google %}
+<header class="top"><div><h1>الإعداد</h1><div class="sub">بتتعمل مرة واحدة بس. امشي بالترتيب.</div></div><span class="chip">v{{ VERSION }}</span></header>
+
+{% if oauth_url %}
+<div class="card" style="border-color:var(--green)">
+  <h2>كمّل الربط ({{ 'جوجل درايف' if oauth_for == 'drive' else S.channels[oauth_for].name }})</h2>
+  <ol class="howto">
+    <li><a href="{{ oauth_url }}" target="_blank" rel="noopener"><strong>اضغط هنا وافتح صفحة جوجل</strong></a> واختار {{ 'حسابك الأساسي' if oauth_for == 'drive' else 'القناة الصح' }}.</li>
+    <li>لو ظهرت رسالة "Google hasn't verified this app": اضغط <b>Advanced</b> ثم <b>Go to ... (unsafe)</b>. ده تطبيقك إنت، فعادي.</li>
+    <li>وافق على كل الصلاحيات.</li>
+    <li>هتتحول لصفحة <b>مش هتفتح</b> (This site can't be reached). ده طبيعي جداً.</li>
+    <li>انسخ <b>العنوان كله</b> من شريط المتصفح فوق (بيبدأ بـ <code>http://127.0.0.1:8765/?</code>) والزقه هنا:</li>
+  </ol>
+  <form method="post">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="step" value="oauth_finish">
+    <input class="ltr" type="text" name="pasted" placeholder="http://127.0.0.1:8765/?state=...&code=..." required>
+    <p><button class="btn primary">تم · اربط</button></p>
+  </form>
+</div>
+{% endif %}
+
+<section class="card step {{ 'done' if g.client_id and g.client_secret }}">
+  <div class="n">1</div>
+  <div style="flex:1">
+    <h3>تطبيق جوجل (مرة واحدة)</h3>
+    <details><summary>إزاي أعمله؟ (خطوة بخطوة)</summary>
+    <ol class="howto">
+      <li>افتح <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">console.cloud.google.com</a> واعمل مشروع جديد باسم <code>content-machine</code>.</li>
+      <li>من <b>APIs &amp; Services ← Library</b> فعّل الأربعة دول: <code>YouTube Data API v3</code> و <code>YouTube Analytics API</code> و <code>Google Drive API</code> و <code>Cloud Text-to-Speech API</code>.</li>
+      <li>من <b>OAuth consent screen</b>: اختار <b>External</b>، اكتب اسم التطبيق وإيميلك، وكمّل.</li>
+      <li><b>مهم جداً:</b> بعد ما تخلص، اضغط <b>Publish app</b> علشان يبقى <b>In production</b>. لو سبته Testing، الربط هيقف كل 7 أيام.</li>
+      <li>من <b>Credentials ← Create credentials ← OAuth client ID</b> اختار النوع <b>Desktop app</b>.</li>
+      <li>انسخ <b>Client ID</b> و <b>Client secret</b> والزقهم هنا.</li>
+    </ol></details>
+    <form method="post">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="step" value="client">
+      <label for="cid">Client ID</label><input id="cid" class="ltr" type="text" name="client_id" value="{{ g.client_id }}" autocomplete="off">
+      <label for="csec">Client secret</label><input id="csec" class="ltr" type="password" name="client_secret" value="{{ g.client_secret }}" autocomplete="off">
+      <p><button class="btn primary">حفظ</button></p>
+    </form>
+  </div>
+</section>
+
+<section class="card step {{ 'done' if g.tts_api_key }}">
+  <div class="n">2</div>
+  <div style="flex:1">
+    <h3>مفتاح الصوت</h3>
+    <details><summary>إزاي أعمله؟</summary>
+    <ol class="howto">
+      <li>لازم المشروع يكون عليه <b>Billing</b> (كارت). الاستخدام غالباً جوه المليون حرف المجاني شهرياً.</li>
+      <li>من <b>Credentials ← Create credentials ← API key</b>.</li>
+      <li>اضغط على المفتاح ← <b>API restrictions</b> ← اختار <code>Cloud Text-to-Speech API</code> بس، واحفظ.</li>
+      <li>الزقه هنا. اللوحة هتجربه على طول.</li>
+    </ol></details>
+    <form method="post">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="step" value="tts">
+      <label for="tts">API key</label><input id="tts" class="ltr" type="password" name="tts_key" value="{{ g.tts_api_key }}" autocomplete="off">
+      <p><button class="btn primary">حفظ وجرّب</button></p>
+    </form>
+  </div>
+</section>
+
+<section class="card step {{ 'done' if S.drive.connected }}">
+  <div class="n">3</div>
+  <div style="flex:1">
+    <h3>جوجل درايف</h3>
+    <p class="sub">ده الجسر بين Claude والماكينة. هيتعمل فولدر اسمه <code>ContentMachine</code> في درايف بتاعك.</p>
+    {% if S.drive.connected %}<p><span class="chip ok">مربوط · {{ S.drive.email }}</span></p>{% endif %}
+    <form method="post"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="step" value="drive_start">
+      <button class="btn {{ '' if S.drive.connected else 'primary' }}" {{ 'disabled' if not g.client_id }}>{{ 'اربط تاني' if S.drive.connected else 'اربط جوجل درايف' }}</button></form>
+  </div>
+</section>
+
+<section class="card step {{ 'done' if S.channels.values()|selectattr('youtube.connected')|list }}">
+  <div class="n">4</div>
+  <div style="flex:1">
+    <h3>قنوات يوتيوب</h3>
+    <p class="sub">كل قناة بتتربط لوحدها. وقت الموافقة اختار القناة (Brand Account) الصح.</p>
+    {% for cid, c in S.channels.items() %}
+    <div class="switch">
+      <div><strong>{{ c.name }}</strong> {% if not c.enabled %}<span class="chip">متوقفة</span>{% endif %}
+        <div class="sub">{% if c.youtube.connected %}<span class="dot ok"></span>{{ c.youtube.channel_title }}{% else %}مش مربوطة{% endif %}</div></div>
+      <div class="row">
+        <form method="post"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="step" value="yt_start:{{ cid }}">
+          <button class="btn small {{ '' if c.youtube.connected else 'primary' }}" {{ 'disabled' if not g.client_id }}>{{ 'اربط تاني' if c.youtube.connected else 'اربط' }}</button></form>
+        {% if c.youtube.connected %}<form method="post"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="step" value="yt_disconnect:{{ cid }}"><button class="btn small danger">افصل</button></form>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+    <p class="sub">بعد ما تربط أول قناة: قدّم طلب <a href="https://support.google.com/youtube/contact/yt_api_form" target="_blank" rel="noopener">YouTube API Audit</a>. لحد ما يتوافق عليه الفيديوهات بتترفع خاصة، وإنت تنشرها من يوتيوب ستوديو بضغطة.</p>
+  </div>
+</section>
+
+<section class="card">
+  <h3>فحص النظام</h3>
+  <div class="tablewrap"><table>
+  {% for name, ok, note in checks %}
+  <tr><td><span class="dot {{ 'ok' if ok else 'bad' }}"></span>{{ name }}</td><td class="sub">{{ note }}</td></tr>
+  {% endfor %}
+  </table></div>
+</section>
+
+<section class="card">
+  <h3>كلمة السر والتحديث</h3>
+  <form method="post" class="row">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="step" value="password">
+    <input type="password" name="pw" placeholder="كلمة سر جديدة" autocomplete="new-password" style="flex:1;min-width:200px">
+    <button class="btn">تغيير</button>
+  </form>
+  <form method="post" action="{{ url_for('update') }}" style="margin-top:12px">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn">⟳ تحديث البرنامج لآخر نسخة</button>
+  </form>
+  <p><a href="{{ url_for('logout') }}">تسجيل خروج</a></p>
+</section>
+{% endblock %}

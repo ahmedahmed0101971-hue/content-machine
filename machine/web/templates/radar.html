@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}الرادار{% endblock %}
+{% block body %}
+<header class="top"><div><h1>الرادار</h1><div class="sub">آخر الأخبار اللي اتمسكت من المصادر الرسمية (كل 15 دقيقة)</div></div></header>
+<div class="row">
+  <a class="btn small {{ 'primary' if not ch else '' }}" href="{{ url_for('radar_page') }}">الكل</a>
+  {% for cid, c in S.channels.items() %}{% if c.enabled %}<a class="btn small {{ 'primary' if ch == cid else '' }}" href="{{ url_for('radar_page', ch=cid) }}">{{ c.name }}</a>{% endif %}{% endfor %}
+</div>
+
+{% if awaiting %}
+<div class="card">
+  <h3>فيديوهات جاهزة مستنية رقم رسمي</h3>
+  {% for p in awaiting %}<p class="title-en">{{ p.data.youtube.title }}</p><p class="sub ltr">{{ p.data.awaiting.url }}</p>{% endfor %}
+</div>
+{% endif %}
+
+<div class="card"><div class="tablewrap"><table>
+<tr><th>الخبر</th><th>الأهمية</th><th>اتمسك</th></tr>
+{% for it in items %}
+<tr>
+  <td class="ltr">{% if it.url %}<a href="{{ it.url }}" target="_blank" rel="noopener">{{ it.title }}</a>{% else %}{{ it.title }}{% endif %}
+    <div class="sub">{{ it.source_id }}{% if it.trend_match %} · 🔥 عليه تريند{% endif %}</div></td>
+  <td>{% if it.tier == 0 %}<span class="chip">تريند جوجل</span>{% elif it.tier == 2 %}<span class="chip err">مهم</span>{% elif it.tier == 1 %}<span class="chip err">عاجل</span>{% else %}<span class="chip">عادي</span>{% endif %}</td>
+  <td class="sub">{{ it.first_seen|ago }}</td>
+</tr>
+{% else %}<tr><td colspan="3" class="empty">لسه مفيش أخبار. الرادار بيشتغل كل 15 دقيقة.</td></tr>{% endfor %}
+</table></div></div>
+{% endblock %}

@@ -1,0 +1,38 @@
+{% macro pkg_card(p, S, STATUS_AR, csrf, actions=true) -%}
+{% set ch = S.channels[p.channel] %}
+{% set cr = p.check_result or {} %}
+<article class="card">
+  <div class="row between">
+    <div class="row">
+      <span class="chip">{{ ch.name }}</span>
+      <span class="chip">{{ 'فيديو طويل' if p.format == 'long' else 'شورت' }}</span>
+      {% if p.priority == 'urgent' %}<span class="chip err">عاجل</span>{% endif %}
+      <span class="chip {{ 'ok' if p.status in ('scheduled','published') else 'err' if p.status == 'failed' else 'warn' }}">{{ STATUS_AR.get(p.status, p.status) }}</span>
+    </div>
+    <span class="sub">النشر: {{ p.publish_at|cairo }} · {{ p.publish_at|et }}</span>
+  </div>
+  <p class="title-en">{{ p.data.youtube.title }}</p>
+  {% if cr %}
+  <p class="sub" style="margin:4px 0">
+    <span class="dot {{ 'ok' if cr.ok else 'bad' }}"></span>{{ cr.summary }}
+  </p>
+  {% endif %}
+  {% if p.error %}<p class="flash err" style="font-size:13px">{{ p.error }}</p>{% endif %}
+  {% if p.note %}<p class="sub">ملاحظة: {{ p.note }}</p>{% endif %}
+  {% if p.youtube_id %}<p><a href="https://youtu.be/{{ p.youtube_id }}" target="_blank" rel="noopener">افتح على يوتيوب ↗</a></p>{% endif %}
+  {% if actions %}
+  <div class="row" style="margin-top:8px">
+    <a class="btn small" href="{{ url_for('pkg_detail', pid=p.id) }}">التفاصيل والسكربت</a>
+    {% if p.status == 'needs_review' %}
+      <form method="post" action="{{ url_for('pkg_action', pid=p.id, action='approve') }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn small primary">اعتماد ✓</button></form>
+    {% endif %}
+    {% if p.status == 'failed' %}
+      <form method="post" action="{{ url_for('pkg_action', pid=p.id, action='retry') }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn small">جرّب تاني</button></form>
+    {% endif %}
+    {% if p.status == 'ready' %}
+      <a class="btn small" href="{{ url_for('media', pid=p.id, kind='video', dl=1) }}">تنزيل الفيديو</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</article>
+{%- endmacro %}

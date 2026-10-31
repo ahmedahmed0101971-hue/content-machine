@@ -1,0 +1,16 @@
+[Unit]
+Description=Content Machine dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=machine
+Group=machine
+WorkingDirectory=/opt/content-machine
+EnvironmentFile=/etc/content-machine.env
+ExecStart=/opt/content-machine/.venv/bin/python -m machine web
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

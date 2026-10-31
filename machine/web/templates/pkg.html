@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}تفاصيل الفيديو{% endblock %}
+{% block body %}
+{% set ch = S.channels[p.channel] %}
+{% set d = p.data %}
+{% set cr = p.check_result or {} %}
+<p><a href="{{ url_for('review') }}">← رجوع للمراجعة</a></p>
+<div class="card">
+  <div class="row">
+    <span class="chip">{{ ch.name }}</span>
+    <span class="chip">{{ 'فيديو طويل' if p.format == 'long' else 'شورت' }}</span>
+    <span class="chip warn">{{ STATUS_AR.get(p.status, p.status) }}</span>
+  </div>
+  <p class="title-en" style="font-size:20px">{{ d.youtube.title }}</p>
+  <p class="sub">النشر: {{ p.publish_at|cairo }} (القاهرة) · {{ p.publish_at|et }}</p>
+
+  {% if p.video_path %}
+    <video controls preload="metadata" {% if p.thumb_path %}poster="{{ url_for('media', pid=p.id, kind='thumb') }}"{% endif %} src="{{ url_for('media', pid=p.id, kind='video') }}"></video>
+    <div class="row" style="margin-top:8px">
+      <a class="btn small" href="{{ url_for('media', pid=p.id, kind='video', dl=1) }}">تنزيل الفيديو</a>
+      {% if p.thumb_path %}<a class="btn small" href="{{ url_for('media', pid=p.id, kind='thumb', dl=1) }}">تنزيل الصورة المصغرة</a>{% endif %}
+      <a class="btn small" href="{{ url_for('media', pid=p.id, kind='srt', dl=1) }}">تنزيل الترجمة</a>
+    </div>
+  {% endif %}
+</div>
+
+{% if p.status in ('needs_review', 'rejected') %}
+<div class="card">
+  <h3>قرارك</h3>
+  <form method="post" action="{{ url_for('pkg_action', pid=p.id, action='approve') }}">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button class="btn primary" style="width:100%">اعتماد ✓ (يتعمل الصوت والفيديو ويترفع في ميعاده)</button>
+  </form>
+  <form method="post" action="{{ url_for('pkg_action', pid=p.id, action='reject') }}" style="margin-top:12px">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label for="note">ملاحظة لـClaude (هيعيد الكتابة بيها في التشغيلة الجاية)</label>
+    <textarea id="note" name="note" placeholder="مثلاً: الهوك ضعيف، أو الرقم ده محتاج مصدر أوضح"></textarea>
+    <button class="btn danger" style="margin-top:8px">رفض</button>
+  </form>
+</div>
+{% endif %}
+{% if p.status == 'ready' %}
+<div class="card row">
+  <form method="post" action="{{ url_for('pkg_action', pid=p.id, action='upload_now') }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn primary">انشر دلوقتي بدل الميعاد</button></form>
+  <form method="post" action="{{ url_for('pkg_action', pid=p.id, action='mark_uploaded') }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn">رفعته بإيدي</button></form>
+</div>
+{% endif %}
+
+<div class="card">
+  <h3>فحص الأرقام</h3>
+  {% if cr %}
+  <p><span class="dot {{ 'ok' if cr.ok else 'bad' }}"></span>{{ cr.summary }}</p>
+  <div class="tablewrap"><table>
+    <tr><th>المعلومة</th><th>النتيجة</th><th>المصدر</th></tr>
+    {% for f in cr.facts %}
+    <tr>
+      <td class="ltr">{{ f.value }}{% if f.note %}<div class="sub">{{ f.note }}</div>{% endif %}</td>
+      <td>{% if f.status == 'found' %}<span class="chip ok">موجودة حرفياً</span>{% elif f.status == 'derived' %}<span class="chip warn">محسوبة · راجعها</span>{% elif f.status == 'unreachable' %}<span class="chip err">المصدر ماتفتحش</span>{% else %}<span class="chip err">مش موجودة!</span>{% endif %}</td>
+      <td class="ltr"><a href="{{ f.source }}" target="_blank" rel="noopener">{{ f.source[:60] }}</a></td>
+    </tr>
+    {% endfor %}
+  </table></div>
+  {% if cr.uncovered_numbers %}<p class="flash err">أرقام في الفيديو ملهاش مصدر: {{ cr.uncovered_numbers|join('، ') }}</p>{% endif %}
+  {% if cr.blocked_words %}<p class="flash err">كلمات ممنوعة: {{ cr.blocked_words|join('، ') }}</p>{% endif %}
+  {% else %}<p class="muted">لسه ماتفحصش.</p>{% endif %}
+</div>
+
+<div class="card">
+  <h3>السكربت ({{ d.scenes|length }} مشاهد)</h3>
+  {% for sc in d.scenes %}
+  <div class="scene"><div class="sub">مشهد {{ loop.index }} · {{ sc.type }}</div><div class="vo">{{ sc.vo }}</div></div>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <h3>بيانات يوتيوب</h3>
+  <label>الوصف</label>
+  <div class="scene vo ltr" style="white-space:pre-wrap">{{ d.youtube.description }}</div>
+  <label>التاجات</label>
+  <div class="row">{% for t in d.youtube.tags %}<span class="chip ltr">{{ t }}</span>{% endfor %}</div>
+  <label>المصادر</label>
+  <ul>{% for s in d.sources %}<li><a class="ltr" href="{{ s.url }}" target="_blank" rel="noopener">{{ s.name }}</a></li>{% endfor %}</ul>
+</div>
+
+<form method="post" action="{{ url_for('pkg_action', pid=p.id, action='delete') }}" onsubmit="return confirm('متأكد إنك عايز تمسحه؟')">
+  <input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn danger small">مسح الباكدج ده نهائياً</button>
+</form>
+{% endblock %}

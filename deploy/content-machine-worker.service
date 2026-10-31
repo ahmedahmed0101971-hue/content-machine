@@ -1,0 +1,19 @@
+[Unit]
+Description=Content Machine worker (radar, voice, render, upload)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=machine
+Group=machine
+WorkingDirectory=/opt/content-machine
+EnvironmentFile=/etc/content-machine.env
+ExecStart=/opt/content-machine/.venv/bin/python -m machine worker
+Restart=always
+RestartSec=10
+Nice=5
+# keep rendering from starving the dashboard
+CPUWeight=80
+
+[Install]
+WantedBy=multi-user.target
