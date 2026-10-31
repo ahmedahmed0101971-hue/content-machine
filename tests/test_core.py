@@ -335,3 +335,14 @@ def test_undated_items_on_first_look_are_baseline(clean_db):
     put_feed("https://t.example/newsroom", html + b"""<a href="/newsroom/a2">Treasury Launches New Savings Bond Rate Calculator Tool</a>""")
     got = radar.run_channel("money", ch)
     assert [g["title"] for g in got] == ["Treasury Launches New Savings Bond Rate Calculator Tool"]
+
+
+def test_clean_title():
+    assert radar.clean_title("October 30, 2026 Social Security Expands Resources and Services for Alaska") == \
+        "Social Security Expands Resources and Services for Alaska"
+    assert radar.clean_title("Read more about Plan Year 2027 Marketplace Plans and Prices Fact Sheet") == \
+        "Plan Year 2027 Marketplace Plans and Prices Fact Sheet"
+    assert radar.clean_title("Seeing lots of ads for health insurance plans? Read") == \
+        "Seeing lots of ads for health insurance plans?"
+    assert radar.clean_title("Social Security Announces 3.6 Percent Benefit Increase for 2027") == \
+        "Social Security Announces 3.6 Percent Benefit Increase for 2027"

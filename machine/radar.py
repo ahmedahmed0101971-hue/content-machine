@@ -102,7 +102,7 @@ def parse_rss(raw: bytes) -> list[dict]:
     root = etree.fromstring(raw, parser=etree.XMLParser(recover=True, resolve_entities=False, no_network=True))
     out = []
     for it in root.iter("item"):
-        out.append({"title": (it.findtext("title") or "").strip(), "url": (it.findtext("link") or "").strip(),
+        out.append({"title": clean_title((it.findtext("title") or "").strip()), "url": (it.findtext("link") or "").strip(),
                     "published": (it.findtext("pubDate") or "").strip()})
     for it in root.iter(NS_ATOM + "entry"):
         link = it.find(NS_ATOM + "link")
@@ -125,6 +125,18 @@ def _is_nav(title: str, href: str, base_url: str) -> bool:
     return bool(_NAV_RE.search(title)) and len(title.split()) < 8
 
 
+_LEAD_JUNK = re.compile(r"^(?:(?:read more|learn more|more)\s*(?:about|on)?\s*[:\-–]?\s*|"
+                        r"(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{1,2},?\s+20\d{2}\s*[|:\-–]?\s*|"
+                        r"\d{1,2}/\d{1,2}/20\d{2}\s*[|:\-–]?\s*)+", re.I)
+_TAIL_JUNK = re.compile(r"\s*(?:[|:\-–]\s*)?(?:read more|learn more|read)\s*[.…>»]*$", re.I)
+
+
+def clean_title(t: str) -> str:
+    """'October 30, 2026 Social Security …' / 'Read more about Plan Year 2027 …' -> the headline itself."""
+    t = _TAIL_JUNK.sub("", _LEAD_JUNK.sub("", t)).strip()
+    return t[:1].upper() + t[1:] if t else t
+
+
 def parse_html_links(raw: bytes, base_url: str, contains: str) -> list[dict]:
     from bs4 import BeautifulSoup
     soup = BeautifulSoup(raw, "lxml")
@@ -133,7 +145,7 @@ def parse_html_links(raw: bytes, base_url: str, contains: str) -> list[dict]:
         href = urljoin(base_url, a["href"])
         if contains and contains not in href:
             continue
-        title = " ".join(a.get_text(" ").split())
+        title = clean_title(" ".join(a.get_text(" ").split()))
         if len(title) < 18 or href in seen or _is_nav(title, href, base_url):
             continue
         seen.add(href)
@@ -147,7 +159,7 @@ def parse_html_links(raw: bytes, base_url: str, contains: str) -> list[dict]:
 
 def _html_date(a, href: str, contains: str) -> str:
     """Date for a news link: from its URL, or from the smallest surrounding block that holds only this link."""
-    dt = parse_date(href)
+    dt = parse_date(href) or parse_date(a.get_text(" "))
     if not dt:
         node = a
         for _ in range(5):
