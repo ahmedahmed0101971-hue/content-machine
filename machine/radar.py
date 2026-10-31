@@ -22,6 +22,7 @@ from . import config, db, events
 from .google.http import request
 
 NS_ATOM = "{http://www.w3.org/2005/Atom}"
+NS_HT = "{https://trends.google.com/trending/rss}"
 MAX_AGE_DAYS = 14
 TIER_BASELINE = 5
 
@@ -102,8 +103,18 @@ def parse_rss(raw: bytes) -> list[dict]:
     root = etree.fromstring(raw, parser=etree.XMLParser(recover=True, resolve_entities=False, no_network=True))
     out = []
     for it in root.iter("item"):
-        out.append({"title": clean_title((it.findtext("title") or "").strip()), "url": (it.findtext("link") or "").strip(),
-                    "published": (it.findtext("pubDate") or "").strip()})
+        row = {"title": clean_title((it.findtext("title") or "").strip()), "url": (it.findtext("link") or "").strip(),
+               "published": (it.findtext("pubDate") or "").strip()}
+        # Google Trends: <link> is the generic trends page -> use the first news story about the search instead
+        traffic = it.findtext(NS_HT + "approx_traffic")
+        if traffic is not None:
+            news = it.find(NS_HT + "news_item")
+            if news is not None:
+                row["url"] = (news.findtext(NS_HT + "news_item_url") or row["url"]).strip()
+                row["extra"] = f"{traffic.strip()} searches · {(news.findtext(NS_HT + 'news_item_title') or '').strip()}"[:300]
+            else:
+                row["extra"] = f"{traffic.strip()} searches"
+        out.append(row)
     for it in root.iter(NS_ATOM + "entry"):
         link = it.find(NS_ATOM + "link")
         out.append({"title": (it.findtext(NS_ATOM + "title") or "").strip(),
@@ -294,7 +305,10 @@ def run_channel(cid: str, ch: dict) -> list[dict]:
         oldest = datetime.now(timezone.utc) - timedelta(days=max_age)
         first_run = not db.conn().execute("SELECT 1 FROM radar_items WHERE channel=? AND source_id=? LIMIT 1",
                                           (cid, src["id"])).fetchone()
+        src_page = src["url"].split("?")[0].rstrip("/")
         for it in items:
+            if role != "trends" and (not it.get("url") or it["url"].split("?")[0].split("#")[0].rstrip("/") == src_page):
+                continue                     # no link to the story itself (points at the listing page): not usable
             dt = item_date(it)
             if dt and dt < oldest:
                 continue                     # old news (archive pages list years of releases): never a candidate
@@ -347,11 +361,16 @@ def hide_old_items(days: int = MAX_AGE_DAYS) -> int:
     """One-off cleanup (runs at worker start): hide items that turn out to be old by their date or URL."""
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
     n = 0
-    for r in db.conn().execute("SELECT key,published,url FROM radar_items WHERE tier IN (2,3)").fetchall():
+    for r in db.conn().execute("SELECT key,title,published,url,tier FROM radar_items WHERE tier IN (0,2,3)").fetchall():
         dt = parse_date(r["published"] or "") or parse_date(r["url"] or "")
-        if dt and dt < cutoff:
+        if r["tier"] != 0 and dt and dt < cutoff:
             db.conn().execute("UPDATE radar_items SET tier=? WHERE key=?", (TIER_BASELINE, r["key"]))
             n += 1
+            continue
+        iso = dt.isoformat() if dt else (r["published"] or "")
+        title = clean_title(r["title"])
+        if iso != (r["published"] or "") or title != r["title"]:      # rows saved by older versions
+            db.conn().execute("UPDATE radar_items SET published=?, title=? WHERE key=?", (iso, title, r["key"]))
     return n
 
 

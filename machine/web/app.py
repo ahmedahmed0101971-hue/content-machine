@@ -47,6 +47,12 @@ def create_app() -> Flask:
             return "—"
         return "\u2066" + datetime.fromisoformat(iso).astimezone(ET).strftime("%I:%M %p ET") + "\u2069"
 
+    @app.template_filter("pubdate")
+    def f_pubdate(v):
+        from ..radar import parse_date
+        dt = parse_date(v or "")
+        return "\u2066" + dt.astimezone(ET).strftime("%b %d") + "\u2069" if dt else "—"
+
     @app.template_filter("ago")
     def f_ago(ts):
         if not ts:
@@ -222,14 +228,17 @@ def create_app() -> Flask:
     @login_required
     def radar_page():
         ch = request.args.get("ch") or ""
-        q = "SELECT * FROM radar_items WHERE tier IN (0,1,2,3)"
+        trends = [dict(r) for r in db.conn().execute(
+            "SELECT * FROM radar_items WHERE tier=0" + (" AND channel=?" if ch else "") +
+            " ORDER BY first_seen DESC LIMIT 15", ([ch] if ch else [])).fetchall()]
+        q = "SELECT * FROM radar_items WHERE tier IN (1,2,3)"
         args: list = []
         if ch:
             q += " AND channel=?"
             args.append(ch)
         q += " ORDER BY COALESCE(NULLIF(REPLACE(SUBSTR(published,1,19),'T',' '),''), datetime(first_seen,'unixepoch')) DESC LIMIT 150"
         items = [dict(r) for r in db.conn().execute(q, args).fetchall()]
-        return render_template("radar.html", items=items, ch=ch, awaiting=db.pkg_list(status="awaiting"))
+        return render_template("radar.html", items=items, trends=trends, ch=ch, awaiting=db.pkg_list(status="awaiting"))
 
     # ---------------------------------------------------------------- settings
     @app.route("/settings", methods=["GET", "POST"])

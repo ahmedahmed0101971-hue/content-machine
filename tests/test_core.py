@@ -370,3 +370,38 @@ def test_migration_adds_priority_once():
         priority_keywords=[w for w in s["channels"]["money"]["priority_keywords"] if w != "trump account"]))
     assert "trump account" not in config.load_settings()["channels"]["money"]["priority_keywords"]  # owner removed it: respected
     config.update_settings(lambda s: s["channels"]["money"]["priority_keywords"].append("trump account"))
+
+
+def test_trends_link_to_story_and_listing_links_dropped(clean_db):
+    feed = b"""<?xml version="1.0"?><rss xmlns:ht="https://trends.google.com/trending/rss" version="2.0"><channel>
+    <item><title>social security payment</title><ht:approx_traffic>2000+</ht:approx_traffic>
+      <link>https://trends.google.com/trending/rss?geo=US</link>
+      <ht:news_item><ht:news_item_title>When is the next payment?</ht:news_item_title>
+      <ht:news_item_url>https://news.example/story-1</ht:news_item_url></ht:news_item></item></channel></rss>"""
+    got = radar.parse_rss(feed)
+    assert got[0]["url"] == "https://news.example/story-1" and got[0]["extra"].startswith("2000+ searches")
+    ch = copy.deepcopy(config.load_settings()["channels"]["money"])
+    ch["sources"] = [{"id": "x", "name": "x", "type": "rss", "url": "https://agency.example/news", "enabled": True}]
+    put_feed("https://agency.example/news", b"""<?xml version="1.0"?><rss><channel>
+      <item><title>Agency announces new payment schedule for benefit recipients</title><link>https://agency.example/news/</link><pubDate>""" + _RECENT + b"""</pubDate></item>
+      <item><title>Agency announces scam warning about fake benefit payment calls</title><link>https://agency.example/news/scam-warning</link><pubDate>""" + _RECENT + b"""</pubDate></item>
+    </channel></rss>""")
+    new = radar.run_channel("money", ch)
+    assert [n["url"] for n in new] == ["https://agency.example/news/scam-warning"]
+
+
+def test_radar_page_renders(clean_db):
+    from machine.web.app import create_app
+    app = create_app()
+    app.config["TESTING"] = True
+    db.conn().execute("INSERT INTO radar_items(key,channel,source_id,title,url,published,extra,tier,first_seen) VALUES"
+                      "('k1','money','google_trends','ssi payment','https://n.example/1','', '1000+ searches · Story',0,?)", (time.time(),))
+    db.conn().execute("INSERT INTO radar_items(key,channel,source_id,title,url,published,extra,tier,first_seen) VALUES"
+                      "('k2','money','ftc','FTC warns about fake charity calls this season','https://ftc.example/a','Wed, 28 Oct 2026 10:00:00 -0400','',2,?)", (time.time(),))
+    with app.test_client() as c:
+        with c.session_transaction() as s:
+            s["ok"] = True
+        config.update_settings(lambda s: s.update({"password_hash": s.get("password_hash") or "x"}))
+        r = c.get("/radar")
+        html = r.get_data(as_text=True)
+        assert r.status_code == 200 and "Oct 28" in html and "1000+ searches" in html
