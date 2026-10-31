@@ -16,11 +16,18 @@ from .render.video import VideoRenderer, build_timeline, estimate_speech
 
 # ------------------------------------------------------------------ import
 def ensure_drive_folders(drive, s: dict) -> dict:
-    folders = s["drive"].get("folders") or {}
     need = ["root", "_system"] + [f"{c}/packages" for c in s["channels"]]
-    if not all(k in folders for k in need):
-        folders = drive.ensure_structure(list(s["channels"].keys()))
-        config.update_settings(lambda x: x["drive"].update({"folders": folders, "root_id": folders["root"]}))
+    folders = s["drive"].get("folders") or {}
+    if all(k in folders for k in need):
+        return folders
+    import fcntl
+    # web + worker can both get here at once; one lock so Drive gets ONE folder tree
+    with open(config.DATA_DIR / ".drive_folders.lock", "w") as lk:
+        fcntl.flock(lk, fcntl.LOCK_EX)
+        folders = config.load_settings()["drive"].get("folders") or {}
+        if not all(k in folders for k in need):
+            folders = drive.ensure_structure(list(s["channels"].keys()))
+            config.update_settings(lambda x: x["drive"].update({"folders": folders, "root_id": folders["root"]}))
     return folders
 
 
