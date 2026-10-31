@@ -52,6 +52,19 @@ def parse_rss(raw: bytes) -> list[dict]:
     return [x for x in out if x["title"]]
 
 
+_NAV_RE = re.compile(r"^(view|see|read|show|browse|more|all)\b|\b(press releases|remarks and statements|"
+                     r"statements (and|&) remarks|news releases|archive|subscribe|sign up|rss)\b", re.I)
+
+
+def _is_nav(title: str, href: str, base_url: str) -> bool:
+    """Menu/listing links ("View All Press Releases", "Remarks and Statements"), not news items."""
+    if href.rstrip("/") == base_url.rstrip("/"):
+        return True
+    if len(title.split()) < 5:
+        return True
+    return bool(_NAV_RE.search(title)) and len(title.split()) < 8
+
+
 def parse_html_links(raw: bytes, base_url: str, contains: str) -> list[dict]:
     from bs4 import BeautifulSoup
     soup = BeautifulSoup(raw, "lxml")
@@ -61,7 +74,7 @@ def parse_html_links(raw: bytes, base_url: str, contains: str) -> list[dict]:
         if contains and contains not in href:
             continue
         title = " ".join(a.get_text(" ").split())
-        if len(title) < 18 or href in seen:
+        if len(title) < 18 or href in seen or _is_nav(title, href, base_url):
             continue
         seen.add(href)
         out.append({"title": title[:300], "url": href, "published": ""})

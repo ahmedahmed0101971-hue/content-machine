@@ -271,3 +271,12 @@ def test_no_chapters_for_shorts_or_too_few():
     p = load_sample("sample-long-ssa-november")
     tl = [{"start": 0, "end": 5}, {"start": 5, "end": 12}] + [{"start": 12, "end": 14}] * (len(p["scenes"]) - 2)
     assert pipeline.chapters(p, tl) == []
+
+
+def test_html_links_skip_menu_items():
+    html = b"""<a href="/news/press-releases">View All Press Releases</a>
+    <a href="/news/press-releases/statements-remarks">Remarks and Statements</a>
+    <a href="/news/press-releases/x1">Secretary Statements &amp; Remarks</a>
+    <a href="/news/press-releases/sb0301">Treasury Announces New Fraud Prevention Measures for Benefit Payments</a>"""
+    got = radar.parse_html_links(html, "https://home.treasury.gov/news/press-releases", "/news/press-releases/")
+    assert [g["title"] for g in got] == ["Treasury Announces New Fraud Prevention Measures for Benefit Payments"]
