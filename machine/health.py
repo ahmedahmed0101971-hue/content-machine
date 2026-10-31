@@ -146,6 +146,8 @@ def check_sources(deep: bool, links_per_source: int = 3) -> dict:
                         body = r.text.lower() if r.status_code < 400 else ""
                         good = r.status_code < 400 and (trends or not words or
                                                          sum(w in body for w in words) >= max(1, len(words) // 2))
+                        if trends and r.status_code in (401, 403, 429):
+                            good = True     # news sites behind trends often block robots; the link is fine for people
                         code = r.status_code
                     except Exception:
                         good, code = False, "ERR"
