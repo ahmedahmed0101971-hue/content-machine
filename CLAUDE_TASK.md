@@ -66,7 +66,7 @@ user's Google Drive folder `ContentMachine/`.
 ## Package format
 Write one JSON file per video to `ContentMachine/<channel>/packages/<id>.json`.
 `id`: `YYYY-MM-DD-<channel>-<slot>-<slug>` (letters, digits, dashes). `date` = publish date in US Eastern.
-See `samples/packages/*.json` in the repository for complete examples. Scene types:
+Complete examples are in `_system/`: `sample_long.json` and `sample_short.json` (read them on your first run each day). Scene types:
 
 | type | fields |
 |---|---|
