@@ -63,6 +63,19 @@ user's Google Drive folder `ContentMachine/`.
 - Vary scene types and order between videos; don't reuse the same opening line twice in a week.
 - Never repeat a topic already in `recent` within 7 days unless there's a new official update.
 
+## SEO (owner priority: every video, every time)
+- Title (55–90 chars): main search phrase FIRST, exactly as Americans type it ("Social Security Changes 2027",
+  "SSI Payment Schedule November 2026", "2027 Tax Brackets"), then the payoff/number, then "(Official)" or a short
+  qualifier. Include the year. No clickbait, no all-caps sentences, no emojis. Shorts end with #Shorts.
+- Description: the first 2 lines (≈150 chars) repeat the main phrase + the key number in a natural sentence —
+  that's what shows in search. Then "In this video:" bullets with every key number, then the official source
+  links, the my-account link if relevant, a subscribe line, the AI disclosure, and 3 hashtags at the very end
+  (#SocialSecurity #SSI #COLA2027 style — the first 3 appear above the title).
+- Tags: 10–12. Main phrase first, then its close variants (program + year, "payment", "raise", "news"),
+  then 1–2 broad ones (program name, agency). Lowercase, no duplicates, no unrelated trending words.
+- Thumbnail words complement the title (never repeat it); the tile shows the single most-searched number/date.
+- Prefer topics with clear search demand: dates, amounts, deadlines, "what changes in <year>", "how to".
+
 ## Package format
 Write one JSON file per video to `ContentMachine/<channel>/packages/<id>.json`.
 `id`: `YYYY-MM-DD-<channel>-<slot>-<slug>` (letters, digits, dashes). `date` = publish date in US Eastern.
