@@ -76,8 +76,11 @@ def _merge_defaults(cur: dict, dflt: dict) -> dict:
 
 # Source URLs that moved; saved settings are fixed on load.
 MOVED_URLS = {
-    "https://www.bls.gov/feed/news_release.rss": "https://www.bls.gov/feed/bls_latest.rss",
+    "https://www.bls.gov/feed/news_release.rss": "https://www.bls.gov/feed/cpi.rss",
+    # bls_latest.rss is one "Latest Numbers" page, not news items -> use the CPI release feed instead
+    "https://www.bls.gov/feed/bls_latest.rss": "https://www.bls.gov/feed/cpi.rss",
 }
+RENAMED_SOURCES = {"bls_news": "التضخم CPI · BLS"}
 
 
 def _merge_sources(cur_ch: dict, dflt_ch: dict) -> None:
@@ -85,6 +88,8 @@ def _merge_sources(cur_ch: dict, dflt_ch: dict) -> None:
     for src in srcs:
         if src.get("url") in MOVED_URLS:
             src["url"] = MOVED_URLS[src["url"]]
+            if src.get("id") in RENAMED_SOURCES:
+                src["name"] = RENAMED_SOURCES[src["id"]]
     have = {x.get("id") for x in srcs}
     for d in dflt_ch.get("sources", []):
         if d.get("id") not in have:          # new sources shipped in an update

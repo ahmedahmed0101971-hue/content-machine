@@ -245,7 +245,9 @@ def test_moved_source_url_is_fixed():
                 src["url"] = "https://www.bls.gov/feed/news_release.rss"
     config.update_settings(fn)
     src = [x for x in config.load_settings()["channels"]["money"]["sources"] if x["id"] == "bls_news"][0]
-    assert src["url"] == "https://www.bls.gov/feed/bls_latest.rss"
+    assert src["url"] == "https://www.bls.gov/feed/cpi.rss"
+    ids = [x["id"] for x in config.load_settings()["channels"]["money"]["sources"]]
+    assert "bls_jobs" in ids and "bls_earnings" in ids          # new default sources are added on update
 
 
 def test_chapters_follow_youtube_rules():
