@@ -6,6 +6,8 @@ Tiers:
   2  important official news in the niche             -> picked up at Claude's next check-in run
   3  normal news                                       -> tomorrow's plan
   4  blocked topic                                     -> ignored
+  5  old / baseline (archive item, or undated item present at the first look) -> hidden
+Only items published within MAX_AGE_DAYS (trends: 2 days) are ever stored as candidates.
 """
 from __future__ import annotations
 
@@ -20,6 +22,8 @@ from . import config, db, events
 from .google.http import request
 
 NS_ATOM = "{http://www.w3.org/2005/Atom}"
+MAX_AGE_DAYS = 14
+TIER_BASELINE = 5
 
 
 def _get(url: str) -> bytes:
@@ -35,6 +39,62 @@ def _get(url: str) -> bytes:
     if r.status_code >= 400:
         raise RuntimeError(f"HTTP {r.status_code}")
     return r.content
+
+
+# ------------------------------------------------------------------ dates (so only FRESH news counts)
+MONTHS = {m: i for i, m in enumerate(
+    ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"], 1)}
+_D_ISO = re.compile(r"(?<!\d)(20\d{2})[-/_.](\d{1,2})[-/_.](\d{1,2})(?!\d)")
+_D_COMPACT = re.compile(r"/(20\d{2})(\d{2})(\d{2})(?!\d)")
+_D_US = re.compile(r"(?<!\d)(\d{1,2})/(\d{1,2})/(20\d{2})(?!\d)")
+_D_TEXT = re.compile(r"\b(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(20\d{2})\b", re.I)
+_D_TEXT_EU = re.compile(r"\b(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?,?\s+(20\d{2})\b", re.I)
+
+
+def _mk(y, m, d) -> datetime | None:
+    try:
+        dt = datetime(int(y), int(m), int(d), 12, 0, tzinfo=timezone.utc)
+    except ValueError:
+        return None
+    now = datetime.now(timezone.utc)
+    return dt if datetime(2000, 1, 1, tzinfo=timezone.utc) <= dt <= now + timedelta(days=2) else None
+
+
+def parse_date(s: str) -> datetime | None:
+    """Best-effort date from RSS/Atom/HTML text or a URL. None if there is no trustworthy date."""
+    if not s:
+        return None
+    s = str(s).strip()
+    from email.utils import parsedate_to_datetime
+    try:
+        dt = parsedate_to_datetime(s)                       # RFC 822 (RSS pubDate)
+        if dt:
+            return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    except (TypeError, ValueError, IndexError):
+        pass
+    try:
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))  # ISO (Atom, JSON APIs)
+        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    except ValueError:
+        pass
+    for rx, order in ((_D_ISO, "ymd"), (_D_COMPACT, "ymd"), (_D_US, "mdy")):
+        m = rx.search(s)
+        if m:
+            g = m.groups()
+            dt = _mk(*g) if order == "ymd" else _mk(g[2], g[0], g[1])
+            if dt:
+                return dt
+    m = _D_TEXT.search(s)
+    if m:
+        return _mk(m.group(3), MONTHS[m.group(1)[:3].lower()], m.group(2))
+    m = _D_TEXT_EU.search(s)
+    if m:
+        return _mk(m.group(3), MONTHS[m.group(2)[:3].lower()], m.group(1))
+    return None
+
+
+def item_date(it: dict) -> datetime | None:
+    return parse_date(it.get("published", "")) or parse_date(it.get("url", ""))
 
 
 def parse_rss(raw: bytes) -> list[dict]:
@@ -77,8 +137,33 @@ def parse_html_links(raw: bytes, base_url: str, contains: str) -> list[dict]:
         if len(title) < 18 or href in seen or _is_nav(title, href, base_url):
             continue
         seen.add(href)
-        out.append({"title": title[:300], "url": href, "published": ""})
-    return out[:60]
+        out.append({"title": title[:300], "url": href, "published": _html_date(a, href, contains)})
+        if len(out) >= 600:
+            break
+    # archive pages can list years of releases in any order: newest dated items first, then undated
+    out.sort(key=lambda x: x["published"] or "", reverse=True)
+    return out[:80]
+
+
+def _html_date(a, href: str, contains: str) -> str:
+    """Date for a news link: from its URL, or from the smallest surrounding block that holds only this link."""
+    dt = parse_date(href)
+    if not dt:
+        node = a
+        for _ in range(5):
+            node = node.parent
+            if node is None or node.name in ("body", "html", "[document]"):
+                break
+            links = [x for x in node.find_all("a", href=True) if not contains or contains in x["href"]]
+            if len({x["href"] for x in links}) > 1:
+                break                                        # block holds other news links -> date is ambiguous
+            t = node.find("time")
+            if t is not None:
+                dt = parse_date(t.get("datetime", "")) or parse_date(t.get_text(" "))
+            dt = dt or parse_date(node.get_text(" "))
+            if dt:
+                break
+    return dt.isoformat() if dt else ""
 
 
 def _dig(obj, path: str):
@@ -192,13 +277,23 @@ def run_channel(cid: str, ch: dict) -> list[dict]:
                 (cid, src["id"], now, str(e)[:300]))
             continue
         role = src.get("role", "news")
+        max_age = float(src.get("max_age_days", 2 if role == "trends" else ch.get("max_age_days", MAX_AGE_DAYS)))
+        oldest = datetime.now(timezone.utc) - timedelta(days=max_age)
+        first_run = not db.conn().execute("SELECT 1 FROM radar_items WHERE channel=? AND source_id=? LIMIT 1",
+                                          (cid, src["id"])).fetchone()
         for it in items:
+            dt = item_date(it)
+            if dt and dt < oldest:
+                continue                     # old news (archive pages list years of releases): never a candidate
             key = hashlib.sha1(f"{cid}|{src['id']}|{it.get('id') or it['url'] or it['title']}".encode()).hexdigest()
             tier = 0 if role == "trends" else classify(it["title"], ch)
+            if first_run and not dt and role != "trends":
+                tier = TIER_BASELINE         # undated item already on the page the first time we looked: not news
             try:
                 db.conn().execute(
                     "INSERT INTO radar_items(key,channel,source_id,title,url,published,extra,tier,first_seen) VALUES(?,?,?,?,?,?,?,?,?)",
-                    (key, cid, src["id"], it["title"], it.get("url", ""), it.get("published", ""), it.get("extra", ""), tier, now))
+                    (key, cid, src["id"], it["title"], it.get("url", ""), dt.isoformat() if dt else "",
+                     it.get("extra", ""), tier, now))
             except Exception:
                 continue   # already seen
             if role != "trends" and tier in (2, 3):
@@ -216,14 +311,35 @@ def run_channel(cid: str, ch: dict) -> list[dict]:
 def candidates_snapshot(cid: str, days: int = 7) -> dict:
     rows = db.conn().execute(
         "SELECT source_id,title,url,published,extra,tier,trend_match,first_seen FROM radar_items"
-        " WHERE channel=? AND first_seen>? AND tier IN (0,2,3) ORDER BY first_seen DESC LIMIT 300",
+        " WHERE channel=? AND first_seen>? AND tier IN (0,2,3) ORDER BY first_seen DESC LIMIT 400",
         (cid, time.time() - days * 86400)).fetchall()
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
     items, trends = [], []
     for r in rows:
         d = dict(r)
+        pub = parse_date(d["published"]) if d["published"] else None
+        if pub and pub < cutoff:
+            continue
         d["first_seen"] = datetime.fromtimestamp(d["first_seen"], timezone.utc).isoformat()
+        d["published"] = pub.isoformat() if pub else ""
+        d["age_hours"] = round((datetime.now(timezone.utc) - pub).total_seconds() / 3600, 1) if pub else None
         (trends if d["tier"] == 0 else items).append(d)
-    return {"channel": cid, "generated": datetime.now(timezone.utc).isoformat(), "items": items, "google_trends_us": trends[:40]}
+    items.sort(key=lambda x: x["published"] or x["first_seen"], reverse=True)
+    return {"channel": cid, "generated": datetime.now(timezone.utc).isoformat(),
+            "note": f"Only items published in the last {days} days. age_hours = hours since the official publish time.",
+            "items": items[:200], "google_trends_us": trends[:40]}
+
+
+def hide_old_items(days: int = MAX_AGE_DAYS) -> int:
+    """One-off cleanup (runs at worker start): hide items that turn out to be old by their date or URL."""
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    n = 0
+    for r in db.conn().execute("SELECT key,published,url FROM radar_items WHERE tier IN (2,3)").fetchall():
+        dt = parse_date(r["published"] or "") or parse_date(r["url"] or "")
+        if dt and dt < cutoff:
+            db.conn().execute("UPDATE radar_items SET tier=? WHERE key=?", (TIER_BASELINE, r["key"]))
+            n += 1
+    return n
 
 
 def check_awaiting() -> None:

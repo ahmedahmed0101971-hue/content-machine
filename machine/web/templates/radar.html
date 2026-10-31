@@ -15,14 +15,15 @@
 {% endif %}
 
 <div class="card"><div class="tablewrap"><table>
-<tr><th>الخبر</th><th>الأهمية</th><th>اتمسك</th></tr>
+<tr><th>الخبر</th><th>الأهمية</th><th>اتنشر</th><th>اتمسك</th></tr>
 {% for it in items %}
 <tr>
   <td class="ltr">{% if it.url %}<a href="{{ it.url }}" target="_blank" rel="noopener">{{ it.title }}</a>{% else %}{{ it.title }}{% endif %}
     <div class="sub">{{ it.source_id }}{% if it.trend_match %} · 🔥 عليه تريند{% endif %}</div></td>
   <td>{% if it.tier == 0 %}<span class="chip">تريند جوجل</span>{% elif it.tier == 2 %}<span class="chip err">مهم</span>{% elif it.tier == 1 %}<span class="chip err">عاجل</span>{% else %}<span class="chip">عادي</span>{% endif %}</td>
+  <td class="sub ltr">{{ (it.published or '')[:10] or '—' }}</td>
   <td class="sub">{{ it.first_seen|ago }}</td>
 </tr>
-{% else %}<tr><td colspan="3" class="empty">لسه مفيش أخبار. الرادار بيشتغل كل 15 دقيقة.</td></tr>{% endfor %}
+{% else %}<tr><td colspan="4" class="empty">لسه مفيش أخبار. الرادار بيشتغل كل 15 دقيقة.</td></tr>{% endfor %}
 </table></div></div>
 {% endblock %}

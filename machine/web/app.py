@@ -227,7 +227,7 @@ def create_app() -> Flask:
         if ch:
             q += " AND channel=?"
             args.append(ch)
-        q += " ORDER BY first_seen DESC LIMIT 150"
+        q += " ORDER BY COALESCE(NULLIF(REPLACE(SUBSTR(published,1,19),'T',' '),''), datetime(first_seen,'unixepoch')) DESC LIMIT 150"
         items = [dict(r) for r in db.conn().execute(q, args).fetchall()]
         return render_template("radar.html", items=items, ch=ch, awaiting=db.pkg_list(status="awaiting"))
 

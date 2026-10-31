@@ -118,6 +118,12 @@ def recover() -> None:
         db.pkg_update(p["id"], status="approved")
     for p in db.pkg_list(status="uploading"):
         db.pkg_update(p["id"], status="ready")
+    try:
+        n = radar.hide_old_items()
+        if n:
+            log.info("radar: hid %d old items", n)
+    except Exception as e:
+        log.warning("radar cleanup failed: %s", e)
 
 
 def main() -> None:

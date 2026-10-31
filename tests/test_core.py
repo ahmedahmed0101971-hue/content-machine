@@ -99,10 +99,13 @@ def test_srt():
     assert "00:00:00,250 --> 00:00:02,500" in out and "00:00:02,500 --> 00:01:05,000" in out
 
 
+from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+from email.utils import format_datetime as _fmt
+_RECENT = _fmt(_dt.now(_tz.utc) - _td(days=1)).encode()
 RSS = b"""<?xml version="1.0"?><rss><channel>
-<item><title>Social Security announces COLA for 2027 recipients</title><link>https://ex.gov/a</link><pubDate>Wed, 14 Oct 2026</pubDate></item>
-<item><title>Agency picnic photo gallery for employees</title><link>https://ex.gov/b</link></item>
-<item><title>Election results of the employee union vote</title><link>https://ex.gov/c</link></item>
+<item><title>Social Security announces COLA for 2027 recipients</title><link>https://ex.gov/a</link><pubDate>""" + _RECENT + b"""</pubDate></item>
+<item><title>Agency picnic photo gallery for employees</title><link>https://ex.gov/b</link><pubDate>""" + _RECENT + b"""</pubDate></item>
+<item><title>Election results of the employee union vote</title><link>https://ex.gov/c</link><pubDate>""" + _RECENT + b"""</pubDate></item>
 </channel></rss>"""
 ATOM = b"""<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom"><entry><title>Medicare Part B premium set</title>
 <link href="https://ex.gov/d"/><updated>2026-11-01</updated></entry></feed>"""
@@ -282,3 +285,53 @@ def test_html_links_skip_menu_items():
     <a href="/news/press-releases/sb0301">Treasury Announces New Fraud Prevention Measures for Benefit Payments</a>"""
     got = radar.parse_html_links(html, "https://home.treasury.gov/news/press-releases", "/news/press-releases/")
     assert [g["title"] for g in got] == ["Treasury Announces New Fraud Prevention Measures for Benefit Payments"]
+
+
+def test_parse_date_formats():
+    assert radar.parse_date("Wed, 14 Oct 2026 10:00:00 -0400").day == 14
+    assert radar.parse_date("2026-10-14T09:00:00Z").month == 10
+    assert radar.parse_date("https://www.ssa.gov/news/en/press/releases/2026-10-14-a.html").day == 14
+    assert radar.parse_date("Posted October 30, 2026 by FTC").day == 30
+    assert radar.parse_date("Oct. 2, 2026").day == 2
+    assert radar.parse_date("10/29/2026").day == 29
+    assert radar.parse_date("Release 2027-99-99") is None
+    assert radar.parse_date("nothing here") is None
+
+
+def test_radar_keeps_only_fresh_news(clean_db):
+    from datetime import date, timedelta
+    today = date.today()
+    fresh, old = today - timedelta(days=2), today - timedelta(days=200)
+    html = f"""<ul>
+      <li><a href="/news/en/press/releases/{fresh}.html">Social Security Announces New Payment Dates For Retirees</a></li>
+      <li><a href="/news/en/press/releases/{old}.html">Social Security Benefit Announcement From Last Spring Season</a></li>
+      <li><div class="card"><a href="/newsroom/press-releases/medicare-part-b-premium-2027">Medicare Part B Premium And Deductible Announced For 2027</a>
+          <span class="date">{fresh.strftime('%B %d, %Y')}</span></div></li>
+      <li><div class="card"><a href="/newsroom/press-releases/old-fact-sheet">Medicare Fact Sheet About Coverage Rules From Long Ago</a>
+          <time datetime="{old}">{old}</time></div></li>
+    </ul>""".encode()
+    ch = copy.deepcopy(config.load_settings()["channels"]["money"])
+    ch["sources"] = [{"id": "ssa", "name": "ssa", "type": "html_links", "url": "https://www.ssa.gov/news/en/press/releases/",
+                      "link_contains": "/releases/20", "enabled": True},
+                     {"id": "cms", "name": "cms", "type": "html_links", "url": "https://www.cms.gov/newsroom",
+                      "link_contains": "/newsroom/", "enabled": True}]
+    put_feed("https://www.ssa.gov/news/en/press/releases/", html)
+    put_feed("https://www.cms.gov/newsroom", html)
+    new = radar.run_channel("money", ch)
+    titles = sorted(i["title"] for i in new)
+    assert titles == ["Medicare Part B Premium And Deductible Announced For 2027",
+                      "Social Security Announces New Payment Dates For Retirees"]
+    snap = radar.candidates_snapshot("money")
+    assert all(i["published"] for i in snap["items"]) and all(i["age_hours"] < 100 for i in snap["items"])
+
+
+def test_undated_items_on_first_look_are_baseline(clean_db):
+    html = b"""<a href="/newsroom/a1">Treasury Announces Something Important For Savers Today</a>"""
+    ch = copy.deepcopy(config.load_settings()["channels"]["money"])
+    ch["sources"] = [{"id": "tr", "name": "tr", "type": "html_links", "url": "https://t.example/newsroom",
+                      "link_contains": "/newsroom/", "enabled": True}]
+    put_feed("https://t.example/newsroom", html)
+    assert radar.run_channel("money", ch) == []                 # already on the page the first time: not news
+    put_feed("https://t.example/newsroom", html + b"""<a href="/newsroom/a2">Treasury Launches New Savings Bond Rate Calculator Tool</a>""")
+    got = radar.run_channel("money", ch)
+    assert [g["title"] for g in got] == ["Treasury Launches New Savings Bond Rate Calculator Tool"]
