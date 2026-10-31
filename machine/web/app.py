@@ -22,7 +22,7 @@ from ..google.http import GoogleError
 
 CAIRO = ZoneInfo("Africa/Cairo")
 ET = ZoneInfo("America/New_York")
-NAV = [("review", "المراجعة"), ("radar_page", "الرادار"), ("settings_page", "الإعدادات"), ("sources_page", "المصادر"), ("log_page", "السجل")]
+NAV = [("review", "المراجعة"), ("radar_page", "الرادار"), ("settings_page", "الإعدادات"), ("sources_page", "المصادر"), ("log_page", "السجل"), ("health_page", "الفحص")]
 
 
 def create_app() -> Flask:
@@ -317,6 +317,19 @@ def create_app() -> Flask:
         return render_template("sources.html", status=status)
 
     # ---------------------------------------------------------------- log
+    @app.route("/health", methods=["GET", "POST"])
+    @login_required
+    def health_page():
+        from .. import health
+        if request.method == "POST":
+            health.request_run()
+            flash("الفحص بدأ. بياخد من دقيقة لـ3 دقايق، والصفحة هتتحدّث لوحدها.", "ok")
+            return redirect(url_for("health_page"))
+        rep = db.kv_get("health_report")
+        waiting = bool(db.kv_get("health_requested", 0) or db.kv_get("health_running", 0))
+        worker_alive = time.time() - db.kv_get("worker_heartbeat", 0) < 120
+        return render_template("health.html", rep=rep, waiting=waiting, worker_alive=worker_alive)
+
     @app.route("/log")
     @login_required
     def log_page():

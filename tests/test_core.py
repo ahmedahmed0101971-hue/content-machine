@@ -405,3 +405,33 @@ def test_radar_page_renders(clean_db):
         r = c.get("/radar")
         html = r.get_data(as_text=True)
         assert r.status_code == 200 and "Oct 28" in html and "1000+ searches" in html
+
+
+def test_health_report_offline(clean_db):
+    from machine import health
+    db.kv_set("worker_heartbeat", time.time())
+    rep = health.run(deep=False)
+    titles = [s["title"] for s in rep["sections"]]
+    assert titles == ["السيرفر", "الإعدادات والربط", "خدمات جوجل", "مصادر الرادار", "الطابور والسجل"]
+    assert rep["status"] in ("ok", "warn", "err") and "فحص شامل" in rep["text"]
+    health.request_run()
+    assert health.maybe_run() is True
+    assert db.kv_get("health_report")["_ts"] > 0
+    assert health.maybe_run() is False                 # not requested again and ran < 24 h ago
+
+
+def test_health_page(clean_db):
+    from machine.web.app import create_app
+    from machine import health
+    app = create_app()
+    app.config["TESTING"] = True
+    rep = health.run(deep=False); rep["_ts"] = time.time()
+    db.kv_set("health_report", rep)
+    with app.test_client() as c:
+        with c.session_transaction() as s:
+            s["ok"] = True; s["csrf"] = "t"
+        config.update_settings(lambda s: s.update({"password_hash": s.get("password_hash") or "x"}))
+        html = c.get("/health").get_data(as_text=True)
+        assert "الفحص الشامل" in html and "مصادر الرادار" in html
+        r = c.post("/health", data={"csrf": "t"})
+        assert r.status_code == 302 and db.kv_get("health_requested", 0) > 0

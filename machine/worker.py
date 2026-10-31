@@ -89,6 +89,31 @@ def tick() -> None:
     if _due("cleanup", 86400):
         pipeline.cleanup()
 
+    _maybe_health()
+
+
+_health_thread: threading.Thread | None = None
+
+
+def _maybe_health() -> None:
+    """Full self-check in its own thread (button in the dashboard, or once a day)."""
+    global _health_thread
+    from . import health
+    if _health_thread is not None and _health_thread.is_alive():
+        return
+    req = db.kv_get("health_requested", 0)
+    last = (db.kv_get("health_report") or {}).get("_ts", 0)
+    if not req and time.time() - last < 86400:
+        return
+
+    def job():
+        try:
+            health.maybe_run()
+        except Exception as e:
+            _throttled_error("health", f"الفحص الشامل ماكملش: {e}")
+    _health_thread = threading.Thread(target=job, daemon=True, name="health")
+    _health_thread.start()
+
 
 def _render_loop() -> None:
     while not _stop.is_set():
