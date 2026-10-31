@@ -236,3 +236,13 @@ def test_upload_pauses_on_quota(clean_db, monkeypatch):
         db.kv_set("upload_pause_until", 0)
         config.update_settings(lambda s: s.update({"youtube_audited": False}) or
                                s["channels"]["money"]["youtube"].update({"connected": False}))
+
+
+def test_moved_source_url_is_fixed():
+    def fn(s):
+        for src in s["channels"]["money"]["sources"]:
+            if src["id"] == "bls_news":
+                src["url"] = "https://www.bls.gov/feed/news_release.rss"
+    config.update_settings(fn)
+    src = [x for x in config.load_settings()["channels"]["money"]["sources"] if x["id"] == "bls_news"][0]
+    assert src["url"] == "https://www.bls.gov/feed/bls_latest.rss"

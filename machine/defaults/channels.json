@@ -27,7 +27,7 @@
       {"id": "irs_news", "name": "الضرائب · IRS", "type": "html_links", "url": "https://www.irs.gov/newsroom", "link_contains": "/newsroom/", "enabled": true},
       {"id": "cms_news", "name": "Medicare · CMS", "type": "html_links", "url": "https://www.cms.gov/newsroom", "link_contains": "/newsroom/", "enabled": true},
       {"id": "treasury_press", "name": "وزارة الخزانة", "type": "html_links", "url": "https://home.treasury.gov/news/press-releases", "link_contains": "/news/press-releases/", "enabled": true},
-      {"id": "bls_news", "name": "إحصاءات العمل · BLS", "type": "rss", "url": "https://www.bls.gov/feed/news_release.rss", "enabled": true}
+      {"id": "bls_news", "name": "إحصاءات العمل · BLS", "type": "rss", "url": "https://www.bls.gov/feed/bls_latest.rss", "enabled": true}
     ]
   },
   "recalls": {

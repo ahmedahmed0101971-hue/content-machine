@@ -70,7 +70,25 @@ def _merge_defaults(cur: dict, dflt: dict) -> dict:
         for cid, ch in dflt["channels"].items():
             if cid in cur["channels"]:
                 _merge_defaults(cur["channels"][cid], ch)
+                _merge_sources(cur["channels"][cid], ch)
     return cur
+
+
+# Source URLs that moved; saved settings are fixed on load.
+MOVED_URLS = {
+    "https://www.bls.gov/feed/news_release.rss": "https://www.bls.gov/feed/bls_latest.rss",
+}
+
+
+def _merge_sources(cur_ch: dict, dflt_ch: dict) -> None:
+    srcs = cur_ch.setdefault("sources", [])
+    for src in srcs:
+        if src.get("url") in MOVED_URLS:
+            src["url"] = MOVED_URLS[src["url"]]
+    have = {x.get("id") for x in srcs}
+    for d in dflt_ch.get("sources", []):
+        if d.get("id") not in have:          # new sources shipped in an update
+            srcs.append(copy.deepcopy(d))
 
 
 def load_settings() -> dict:
