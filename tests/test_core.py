@@ -435,3 +435,14 @@ def test_health_page(clean_db):
         assert "الفحص الشامل" in html and "مصادر الرادار" in html
         r = c.post("/health", data={"csrf": "t"})
         assert r.status_code == 302 and db.kv_get("health_requested", 0) > 0
+
+
+def test_trend_match_is_strict():
+    q = [("election results", radar._keywords("election results")),
+         ("social security payment", radar._keywords("social security payment")),
+         ("venezuela", radar._keywords("venezuela")),
+         ("stanford vs louisville", radar._keywords("stanford vs louisville"))]
+    assert radar.trend_match("READOUT: Secretary of the Treasury Meeting with Foreign Minister", q) is None
+    assert radar.trend_match("Treasury statement on the election of the new board", q) is None
+    assert radar.trend_match("When is the next Social Security payment? SSA explains", q) == "social security payment"
+    assert radar.trend_match("Treasury sanctions Venezuela oil exports", q) == "venezuela"

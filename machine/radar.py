@@ -271,14 +271,42 @@ def classify(title: str, ch: dict) -> int:
     return 3
 
 
-def _trend_terms(cid: str) -> set[str]:
+# words that appear in almost every headline: never enough to call something "trending"
+_GENERIC = set("""about after again against also announces announced because before being between could during every
+first from have here into just latest live more most news only other over people said says still than that their there
+these they this those through today under update updates what when where which while will with would year years week
+watch time game games score scores play vote votes voting election elections results poll polls state states county
+city united america american americans national federal government department secretary minister foreign meeting
+statement statements remarks readout office report reports press release releases public program programs new""".split())
+
+
+def _keywords(text: str) -> set[str]:
+    return {w for w in re.findall(r"[a-z0-9]{4,}", text.lower()) if w not in _GENERIC}
+
+
+def _trend_queries(cid: str) -> list[tuple[str, set[str]]]:
+    """Google Trends searches from the last 24 h: (search, its meaningful words)."""
     rows = db.conn().execute("SELECT title FROM radar_items WHERE channel=? AND source_id='google_trends' AND first_seen>?",
-                             (cid, time.time() - 2 * 86400)).fetchall()
-    terms = set()
+                             (cid, time.time() - 86400)).fetchall()
+    out = []
     for r in rows:
-        for w in re.findall(r"[a-z0-9]{4,}", r["title"].lower()):
-            terms.add(w)
-    return terms
+        kw = _keywords(r["title"])
+        if kw:
+            out.append((r["title"].lower(), kw))
+    return out
+
+
+def trend_match(title: str, queries: list[tuple[str, set[str]]]) -> str | None:
+    """The trending search this headline is really about, or None.
+    Match = the whole search phrase is in the headline, or all its meaningful words are (at least 2)."""
+    low = title.lower()
+    words = _keywords(title)
+    for q, kw in queries:
+        if len(q) >= 6 and re.search(rf"(?<![a-z0-9]){re.escape(q)}(?![a-z0-9])", low):
+            return q
+        if len(kw) >= 2 and kw <= words:
+            return q
+    return None
 
 
 def run_channel(cid: str, ch: dict) -> list[dict]:
@@ -326,12 +354,14 @@ def run_channel(cid: str, ch: dict) -> list[dict]:
             if role != "trends" and tier in (2, 3):
                 new_items.append({**it, "tier": tier, "source": src["name"], "key": key})
     # trend match flags for new items
-    terms = _trend_terms(cid)
+    queries = _trend_queries(cid)
     for it in new_items:
-        words = set(re.findall(r"[a-z0-9]{4,}", it["title"].lower()))
-        if words & terms:
+        q = trend_match(it["title"], queries)
+        if q:
             it["trend_match"] = True
-            db.conn().execute("UPDATE radar_items SET trend_match=1 WHERE key=?", (it["key"],))
+            it["trend_query"] = q
+            db.conn().execute("UPDATE radar_items SET trend_match=1, extra=? WHERE key=?",
+                              (f"trending search: {q}"[:300], it["key"]))
     return new_items
 
 
@@ -361,6 +391,9 @@ def hide_old_items(days: int = MAX_AGE_DAYS) -> int:
     """One-off cleanup (runs at worker start): hide items that turn out to be old by their date or URL."""
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
     n = 0
+    if not db.kv_get("trend_flags_v2"):
+        db.conn().execute("UPDATE radar_items SET trend_match=0 WHERE tier IN (2,3) AND COALESCE(extra,'') NOT LIKE 'trending search:%'")
+        db.kv_set("trend_flags_v2", 1)
     for r in db.conn().execute("SELECT key,title,published,url,tier FROM radar_items WHERE tier IN (0,2,3)").fetchall():
         dt = parse_date(r["published"] or "") or parse_date(r["url"] or "")
         if r["tier"] != 0 and dt and dt < cutoff:

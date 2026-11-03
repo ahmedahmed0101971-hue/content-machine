@@ -19,7 +19,7 @@
 {% for it in items %}
 <tr>
   <td class="ltr">{% if it.url %}<a href="{{ it.url }}" target="_blank" rel="noopener">{{ it.title }}</a>{% else %}{{ it.title }}{% endif %}
-    <div class="sub">{{ it.source_id }}{% if it.trend_match %} · 🔥 عليه تريند{% endif %}</div></td>
+    <div class="sub">{{ it.source_id }}{% if it.trend_match %} · 🔥 الناس بتدور عليه{% if it.extra and it.extra.startswith('trending search: ') %}: «{{ it.extra[17:] }}»{% endif %}{% endif %}</div></td>
   <td>{% if it.tier == 2 %}<span class="chip err">مهم</span>{% elif it.tier == 1 %}<span class="chip err">عاجل</span>{% else %}<span class="chip">عادي</span>{% endif %}</td>
   <td class="sub">{{ it.published|pubdate }}</td>
   <td class="sub">{{ it.first_seen|ago }}</td>
