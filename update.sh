@@ -9,7 +9,7 @@ fi
 log() { sudo -u machine env MACHINE_DATA=/var/lib/content-machine "$APP/.venv/bin/python" -c \
   "from machine import events; events.$1('''$2''', notify=False)" 2>/dev/null || true; }
 pull() { if [ -d "$APP/.git" ]; then git -C "$APP" pull --ff-only; else echo "no git repo: skipping pull"; fi; }
-if pull && "$APP/.venv/bin/pip" install -q -r "$APP/requirements.txt"; then
+if pull && "$APP/.venv/bin/pip" install -q -r "$APP/requirements.txt" && "$APP/.venv/bin/pip" install -q -U "yt-dlp[default]"; then
   cp "$APP"/deploy/content-machine-*.service /etc/systemd/system/
   systemctl daemon-reload
   systemctl restart content-machine-worker content-machine-web

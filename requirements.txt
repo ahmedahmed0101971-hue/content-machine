@@ -5,3 +5,5 @@ beautifulsoup4>=4.12
 lxml>=5.0
 pillow>=10.0
 numpy>=1.26
+yt-dlp[default]
+openpyxl

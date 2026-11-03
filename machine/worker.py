@@ -90,6 +90,29 @@ def tick() -> None:
         pipeline.cleanup()
 
     _maybe_health()
+    _maybe_ytjob()
+
+
+_yt_thread: threading.Thread | None = None
+
+
+def _maybe_ytjob() -> None:
+    """Channel analysis jobs (تحليل قناة) run one at a time in their own thread."""
+    global _yt_thread
+    from . import ytanalyze
+    if _yt_thread is not None and _yt_thread.is_alive():
+        return
+    job = ytanalyze.next_queued()
+    if not job:
+        return
+
+    def run():
+        try:
+            ytanalyze.run_job(job)
+        except Exception as e:
+            log.warning("channel analysis failed: %s", e)
+    _yt_thread = threading.Thread(target=run, daemon=True, name="ytjob")
+    _yt_thread.start()
 
 
 _health_thread: threading.Thread | None = None
@@ -143,6 +166,14 @@ def recover() -> None:
         db.pkg_update(p["id"], status="approved")
     for p in db.pkg_list(status="uploading"):
         db.pkg_update(p["id"], status="ready")
+    try:
+        from . import ytanalyze
+        for j in ytanalyze.list_jobs():
+            if j["status"] == "running":          # interrupted by a restart -> run again
+                j["status"], j["progress"] = "queued", "في الطابور (اتعاد بعد restart)"
+                db.kv_set(f"ytjob:{j['id']}", j)
+    except Exception:
+        pass
     try:
         n = radar.hide_old_items()
         if n:

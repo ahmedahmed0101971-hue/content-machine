@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}تحليل قناة{% endblock %}
+{% block head %}{% if jobs and (jobs|selectattr('status','in',['queued','running'])|list) %}<meta http-equiv="refresh" content="10">{% endif %}{% endblock %}
+{% block body %}
+<header class="top"><div><h1>تحليل قناة يوتيوب</h1>
+<div class="sub">حط لينك أي قناة: البرنامج يجيب كل فيديوهاتها (من غير مفتاح API) ويفصّصها: العنوان، الوصف، الصورة المصغرة، التاريخ، المشاهدات، اللايكات، التعليقات، التاجات، المدة… وبعدين يحلل إيه اللي نجح وليه. التقرير بيتحفظ في درايف لـClaude كمان.</div></div></header>
+
+<form method="post" class="card">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label for="url">لينك القناة أو @اسمها</label>
+  <input id="url" name="url" class="ltr" placeholder="https://www.youtube.com/@ChannelName" required>
+  <p><strong>هجيب إيه:</strong></p>
+  <div class="row">
+    {% for k, v in tabs.items() %}<label class="chip"><input type="checkbox" name="tab_{{ k }}" {{ 'checked' if k != 'streams' }}> {{ v }}</label>{% endfor %}
+  </div>
+  <p><strong>نوع التحليل:</strong></p>
+  <label class="switch"><div><strong>شامل (موصى بيه)</strong><div class="sub">بيفتح كل فيديو: تاريخ النشر بالظبط، اللايكات، التعليقات، التاجات، الوصف كامل، الفصول. بياخد حوالي دقيقة لكل 60 فيديو.</div></div><input type="radio" name="mode" value="full" checked></label>
+  <label class="switch"><div><strong>سريع</strong><div class="sub">من صفحة القناة بس: العنوان، المشاهدات، المدة، الصورة المصغرة، والتاريخ تقريبي. ثواني.</div></div><input type="radio" name="mode" value="fast"></label>
+  <label for="limit">أقصى عدد فيديوهات من كل نوع</label>
+  <input id="limit" name="limit" type="number" min="1" max="{{ maxv }}" value="{{ maxv }}" class="ltr">
+  <p><button class="btn primary">حلّل القناة</button></p>
+</form>
+
+<h2>التحليلات</h2>
+<div class="card"><div class="tablewrap"><table>
+<tr><th>القناة</th><th>الحالة</th><th>النوع</th><th>بدأ</th><th></th></tr>
+{% for j in jobs %}
+<tr>
+  <td class="ltr"><a href="{{ url_for('yt_report', jid=j.id) }}">{{ j.channel_title or j.base }}</a></td>
+  <td>{% if j.status == 'done' %}<span class="chip ok">{{ j.progress }}</span>{% elif j.status == 'failed' %}<span class="chip err">فشل</span>{% else %}<span class="chip warn">{{ j.progress }}</span>{% endif %}</td>
+  <td class="sub">{{ 'شامل' if j.mode == 'full' else 'سريع' }} · {% for t in j.tabs %}{{ tabs[t] }}{{ '، ' if not loop.last }}{% endfor %}</td>
+  <td class="sub">{{ j.created|cairo }}</td>
+  <td><form method="post" action="{{ url_for('yt_delete', jid=j.id) }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn small">مسح</button></form></td>
+</tr>
+{% else %}<tr><td colspan="5" class="empty">لسه مفيش تحليلات</td></tr>{% endfor %}
+</table></div></div>
+<p class="sub">ملاحظة: استخدم التحليل علشان تفهم إيه اللي بينجح (المواضيع، شكل العناوين، الطول، المواعيد). ماتنسخش عناوين أو صور مصغرة أو سكربتات قنوات تانية زي ما هي: يوتيوب بيعاقب المحتوى المنسوخ، وده كمان حقوق ملكية.</p>
+{% endblock %}

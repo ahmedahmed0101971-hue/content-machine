@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import tempfile
 import threading
+import re
 import time
 from datetime import datetime, timezone
 from functools import wraps
@@ -22,7 +23,7 @@ from ..google.http import GoogleError
 
 CAIRO = ZoneInfo("Africa/Cairo")
 ET = ZoneInfo("America/New_York")
-NAV = [("review", "المراجعة"), ("radar_page", "الرادار"), ("settings_page", "الإعدادات"), ("sources_page", "المصادر"), ("log_page", "السجل"), ("health_page", "الفحص")]
+NAV = [("review", "المراجعة"), ("radar_page", "الرادار"), ("settings_page", "الإعدادات"), ("sources_page", "المصادر"), ("log_page", "السجل"), ("yt_page", "تحليل قناة"), ("health_page", "الفحص")]
 
 
 def create_app() -> Flask:
@@ -317,6 +318,67 @@ def create_app() -> Flask:
         return render_template("sources.html", status=status)
 
     # ---------------------------------------------------------------- log
+    # ---------------------------------------------------------------- channel analyzer
+    @app.route("/yt", methods=["GET", "POST"])
+    @login_required
+    def yt_page():
+        from .. import ytanalyze
+        if request.method == "POST":
+            try:
+                tabs = [t for t in ("videos", "shorts", "streams") if request.form.get(f"tab_{t}") == "on"]
+                jid = ytanalyze.new_job(request.form.get("url", ""), tabs, request.form.get("mode", "fast"),
+                                        int(request.form.get("limit") or ytanalyze.MAX_VIDEOS))
+                flash("التحليل بدأ. الصفحة بتتحدّث لوحدها.", "ok")
+                return redirect(url_for("yt_report", jid=jid))
+            except ValueError as e:
+                flash(str(e), "err")
+                return redirect(url_for("yt_page"))
+        return render_template("yt.html", jobs=ytanalyze.list_jobs(), tabs=ytanalyze.TABS, maxv=ytanalyze.MAX_VIDEOS)
+
+    @app.route("/yt/<jid>")
+    @login_required
+    def yt_report(jid):
+        from .. import ytanalyze
+        job = ytanalyze.get_job(jid) or abort(404)
+        rep = ytanalyze.load_report(jid) if job["status"] == "done" else None
+        if rep:
+            rep["videos"].sort(key=lambda r: r.get("views") or 0, reverse=True)
+        return render_template("yt_report.html", job=job, rep=rep)
+
+    @app.route("/yt/<jid>/download/<fmt>")
+    @login_required
+    def yt_download(jid, fmt):
+        from .. import ytanalyze
+        if not re.fullmatch(r"[\w-]+", jid) or fmt not in ("xlsx", "json", "csv"):
+            abort(404)
+        job = ytanalyze.get_job(jid) or abort(404)
+        name = re.sub(r"[^\w-]+", "-", job.get("channel_title") or "channel")[:40] or "channel"
+        if fmt == "csv":
+            import csv, io
+            rep = ytanalyze.load_report(jid) or abort(404)
+            buf = io.StringIO()
+            w = csv.writer(buf)
+            w.writerow([h for _, h in ytanalyze.COLS])
+            for r in sorted(rep["videos"], key=lambda r: r.get("views") or 0, reverse=True):
+                w.writerow([", ".join(map(str, r.get(k))) if isinstance(r.get(k), list) else r.get(k) for k, _ in ytanalyze.COLS])
+            p = ytanalyze.REPORTS() / f"{jid}.csv"
+            p.write_text("\ufeff" + buf.getvalue(), encoding="utf-8")
+        else:
+            p = ytanalyze.REPORTS() / f"{jid}.{fmt}"
+        if not p.exists():
+            abort(404)
+        return send_file(str(p), as_attachment=True, download_name=f"{name}-{jid}.{fmt}")
+
+    @app.post("/yt/<jid>/delete")
+    @login_required
+    def yt_delete(jid):
+        from .. import ytanalyze
+        db.kv_set("ytjobs", [i for i in db.kv_get("ytjobs", []) if i != jid])
+        for ext in ("json", "xlsx", "csv"):
+            (ytanalyze.REPORTS() / f"{jid}.{ext}").unlink(missing_ok=True)
+        flash("اتمسح", "ok")
+        return redirect(url_for("yt_page"))
+
     @app.route("/health", methods=["GET", "POST"])
     @login_required
     def health_page():

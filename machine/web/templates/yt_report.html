@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}تحليل {{ job.channel_title or 'قناة' }}{% endblock %}
+{% block head %}{% if job.status in ['queued','running'] %}<meta http-equiv="refresh" content="8">{% endif %}
+<style>
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.kpi{background:#111a2e;border-radius:12px;padding:12px}.kpi b{display:block;font-size:20px}.kpi span{font-size:12px;opacity:.75}
+.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.thumbs a{display:block;color:inherit;text-decoration:none}.thumbs img{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:10px;background:#111}
+.thumbs .t{font-size:13px;margin-top:6px;direction:ltr;text-align:left}.thumbs .m{font-size:12px;opacity:.7;direction:ltr;text-align:left}
+.bar{height:8px;background:var(--green,#34d399);border-radius:4px}
+table.vt td,table.vt th{font-size:12.5px;vertical-align:top}table.vt img{width:120px;border-radius:6px}
+th.sort{cursor:pointer;white-space:nowrap}th.sort:after{content:" ⇅";opacity:.4}
+</style>{% endblock %}
+{% block body %}
+<header class="top"><div><h1>{{ job.channel_title or job.base }}</h1>
+<div class="sub ltr"><a href="{{ job.base }}" target="_blank" rel="noopener">{{ job.base }}</a> · {{ 'شامل' if job.mode == 'full' else 'سريع' }}</div></div></header>
+
+{% if job.status != 'done' %}
+<div class="card">{% if job.status == 'failed' %}<p class="flash err">التحليل فشل: {{ job.error }}</p>
+<p class="sub">لو الرسالة فيها "bot" أو "Sign in": يوتيوب منع السيرفر مؤقتاً. جرّب "سريع"، أو استنى ساعة وجرّب تاني.</p>
+{% else %}<p><span class="chip warn">{{ job.progress }}</span></p><p class="sub">الصفحة بتتحدّث كل 8 ثواني. التحليل الشامل لقناة فيها 500 فيديو بياخد حوالي 8 دقايق.</p>{% endif %}</div>
+{% else %}
+{% set ch = rep.summary.channel or {} %}
+<div class="row">
+  <a class="btn primary" href="{{ url_for('yt_download', jid=job.id, fmt='xlsx') }}">تحميل Excel</a>
+  <a class="btn" href="{{ url_for('yt_download', jid=job.id, fmt='csv') }}">CSV</a>
+  <a class="btn" href="{{ url_for('yt_download', jid=job.id, fmt='json') }}">JSON</a>
+</div>
+{% if rep.warnings %}<p class="flash warn">{{ rep.warnings|join(' · ') }}</p>{% endif %}
+
+{% for kind, b in rep.summary.by_type.items() %}
+<h2>{{ b.label }} · {{ b.count }} فيديو</h2>
+<div class="card"><div class="kpis">
+  <div class="kpi"><b>{{ '{:,}'.format(b.total_views or 0) }}</b><span>إجمالي المشاهدات</span></div>
+  <div class="kpi"><b>{{ '{:,}'.format((b.median_views or 0)|int) }}</b><span>الوسيط (الفيديو العادي)</span></div>
+  <div class="kpi"><b>{{ '{:,}'.format(b.max_views or 0) }}</b><span>أعلى فيديو</span></div>
+  <div class="kpi"><b>{{ b.viral_count }}</b><span>فيرال (3× الوسيط أو أكتر)</span></div>
+  <div class="kpi"><b>{{ b.uploads_per_week or '—' }}</b><span>فيديو في الأسبوع</span></div>
+  <div class="kpi"><b>{{ b.last_30_days_uploads }}</b><span>نزل آخر 30 يوم</span></div>
+  <div class="kpi"><b>{{ ((b.median_duration_sec or 0) / 60)|round(1) }} د</b><span>المدة العادية</span></div>
+  <div class="kpi"><b>{{ ((b.median_duration_top_sec or 0) / 60)|round(1) }} د</b><span>مدة أنجح 20%</span></div>
+  <div class="kpi"><b>{{ b.median_engagement_pct if b.median_engagement_pct is not none else '—' }}%</b><span>تفاعل (لايك+تعليق)</span></div>
+  <div class="kpi"><b>{{ b.title_len_top or '—' }} / {{ b.title_len_all or '—' }}</b><span>طول العنوان: الناجح / الكل</span></div>
+  <div class="kpi"><b>{{ b.first_upload or '—' }}</b><span>أول فيديو</span></div>
+  <div class="kpi"><b>{{ b.last_upload or '—' }}</b><span>آخر فيديو</span></div>
+</div></div>
+
+<h3>أعلى 10 مشاهدات</h3>
+<div class="card thumbs">{% for v in b.top10 %}
+<a href="{{ v.url }}" target="_blank" rel="noopener"><img loading="lazy" src="{{ v.thumbnail }}" alt=""><div class="t">{{ v.title }}</div>
+<div class="m">{{ '{:,}'.format(v.views or 0) }} views · {{ (v.published or '')[:10] }}{% if v.vs_median %} · {{ v.vs_median }}× median{% endif %}</div></a>
+{% endfor %}</div>
+
+<h3>الأسرع صعوداً (مشاهدات في اليوم)</h3>
+<div class="card thumbs">{% for v in b.rising10 %}
+<a href="{{ v.url }}" target="_blank" rel="noopener"><img loading="lazy" src="{{ v.thumbnail }}" alt=""><div class="t">{{ v.title }}</div>
+<div class="m">{{ '{:,}'.format((v.views_per_day or 0)|int) }}/day · {{ '{:,}'.format(v.views or 0) }} views · {{ (v.published or '')[:10] }}</div></a>
+{% else %}<p class="empty">محتاج تواريخ (اختار التحليل الشامل)</p>{% endfor %}</div>
+
+<div class="card"><h3>شكل العنوان: أنجح 20% مقابل الباقي</h3><div class="tablewrap"><table>
+<tr><th>الصفة</th><th>أنجح 20%</th><th>الباقي</th></tr>
+{% set names = {'has_number':'فيه رقم','has_money':'فيه فلوس/$','has_question':'سؤال ?','has_exclaim':'تعجب !','has_year':'فيه سنة','has_how':'How/Why/What','has_emoji':'إيموجي','has_brackets':'أقواس ( ) [ ] |'} %}
+{% for p in b.title_patterns %}<tr><td>{{ names.get(p.feature, p.feature) }}</td><td><b>{{ p.top20_pct }}%</b></td><td>{{ p.rest_pct if p.rest_pct is not none else '—' }}%</td></tr>{% endfor %}
+</table></div></div>
+
+<div class="card"><h3>كلمات بتتكرر في الفيديوهات الناجحة أكتر من العادي</h3>
+<p class="ltr">{% for w in b.winning_words %}<span class="chip ok" title="{{ w.in_top }} من الأفضل / {{ w.in_all }} من الكل">{{ w.word }} ×{{ w.lift }}</span> {% else %}—{% endfor %}</p>
+<h3>عبارات متكررة في الناجح</h3><p class="ltr">{% for g in b.top_phrases %}<span class="chip">{{ g.phrase }} ({{ g.count }})</span> {% else %}—{% endfor %}</p>
+<h3>أكتر التاجات</h3><p class="ltr">{% for t in b.top_tags[:30] %}<span class="chip">{{ t.tag }} ({{ t.count }})</span> {% else %}<span class="sub">التاجات بتظهر في التحليل الشامل بس</span>{% endfor %}</p></div>
+
+{% if b.weekday_uploads %}<div class="card"><h3>أيام النشر (توقيت أمريكا الشرقي)</h3><div class="tablewrap"><table>
+<tr><th>اليوم</th><th>عدد الفيديوهات</th><th>وسيط المشاهدات</th></tr>
+{% for d, n in b.weekday_uploads.items() %}<tr><td class="ltr">{{ d }}</td><td>{{ n }}</td><td>{{ '{:,}'.format((b.weekday_median_views[d] or 0)|int) }}</td></tr>{% endfor %}
+</table></div>
+{% if b.hour_uploads_et %}<p class="sub ltr">Upload hours (ET): {% for h, n in b.hour_uploads_et.items() %}{{ h }}:00 ×{{ n }} {% endfor %}</p>{% endif %}</div>{% endif %}
+
+{% if b.by_month %}<div class="card"><h3>كل شهر</h3><div class="tablewrap"><table>
+<tr><th>الشهر</th><th>فيديوهات</th><th>مشاهدات</th></tr>
+{% set mx = b.by_month.values()|map(attribute='views')|max %}
+{% for m, x in b.by_month.items()|reverse %}<tr><td class="ltr">{{ m }}</td><td>{{ x.videos }}</td><td>{{ '{:,}'.format(x.views) }}<div class="bar" style="width:{{ (100 * x.views / (mx or 1))|round(0) }}%"></div></td></tr>{% endfor %}
+</table></div></div>{% endif %}
+{% endfor %}
+
+<h2>كل الفيديوهات ({{ rep.videos|length }})</h2>
+<div class="row">
+  <input id="q" class="ltr" placeholder="ابحث في العناوين…" oninput="filt()" style="max-width:320px">
+  <select id="ty" onchange="filt()"><option value="">الكل</option>{% for k in rep.summary.by_type %}<option value="{{ k }}">{{ rep.summary.by_type[k].label }}</option>{% endfor %}</select>
+</div>
+<div class="card"><div class="tablewrap"><table class="vt" id="vt">
+<thead><tr><th>الصورة</th><th class="sort" data-k="t">العنوان</th><th class="sort" data-k="d">التاريخ</th><th class="sort" data-k="v">مشاهدات</th><th class="sort" data-k="vd">/يوم</th><th class="sort" data-k="x">×الوسيط</th><th class="sort" data-k="l">لايك</th><th class="sort" data-k="c">تعليق</th><th class="sort" data-k="e">تفاعل%</th><th class="sort" data-k="du">المدة</th><th>الأداء</th></tr></thead>
+<tbody>{% for r in rep.videos %}
+<tr data-ty="{{ r.type }}" data-t="{{ r.title|lower }}" data-d="{{ r.published[:10] }}" data-v="{{ r.views or 0 }}" data-vd="{{ r.views_per_day or 0 }}" data-x="{{ r.vs_median or 0 }}" data-l="{{ r.likes or 0 }}" data-c="{{ r.comments or 0 }}" data-e="{{ r.engagement_pct or 0 }}" data-du="{{ r.duration_sec or 0 }}">
+<td><a href="{{ r.url }}" target="_blank" rel="noopener"><img loading="lazy" src="{{ r.thumbnail }}" alt=""></a></td>
+<td class="ltr"><a href="{{ r.url }}" target="_blank" rel="noopener">{{ r.title }}</a>
+  {% if r.tags %}<div class="sub">{{ r.tags[:8]|join(', ') }}</div>{% endif %}
+  {% if r.description %}<details><summary class="sub">الوصف</summary><div class="sub" style="white-space:pre-wrap">{{ r.description[:1500] }}</div></details>{% endif %}</td>
+<td class="ltr">{{ r.published[:10] }}{% if not r.date_exact and r.published %}~{% endif %}</td>
+<td>{{ '{:,}'.format(r.views or 0) }}</td><td>{{ '{:,}'.format((r.views_per_day or 0)|int) }}</td><td>{{ r.vs_median or '' }}</td>
+<td>{{ '{:,}'.format(r.likes) if r.likes is not none else '—' }}</td><td>{{ '{:,}'.format(r.comments) if r.comments is not none else '—' }}</td>
+<td>{{ r.engagement_pct if r.engagement_pct is not none else '—' }}</td>
+<td class="ltr">{% if r.duration_sec %}{{ r.duration_sec // 60 }}:{{ '%02d' % (r.duration_sec % 60) }}{% else %}—{% endif %}</td>
+<td>{{ r.performance }}</td></tr>
+{% endfor %}</tbody></table></div></div>
+<p class="sub">التاريخ اللي جنبه ~ تقريبي (من "من 3 أسابيع"). التحليل الشامل بيجيب التاريخ بالظبط.</p>
+<script>
+function filt(){const q=document.getElementById('q').value.toLowerCase(),t=document.getElementById('ty').value;
+document.querySelectorAll('#vt tbody tr').forEach(r=>{r.style.display=((!q||r.dataset.t.includes(q))&&(!t||r.dataset.ty===t))?'':'none'})}
+document.querySelectorAll('#vt th.sort').forEach(th=>th.addEventListener('click',()=>{const k=th.dataset.k,tb=document.querySelector('#vt tbody');
+const rows=[...tb.rows],asc=th.dataset.asc!=='1';th.dataset.asc=asc?'1':'0';
+rows.sort((a,b)=>{let x=a.dataset[k],y=b.dataset[k];if(k!=='t'&&k!=='d'){x=+x;y=+y}return (x>y?1:x<y?-1:0)*(asc?1:-1)});rows.forEach(r=>tb.appendChild(r))}));
+</script>
+{% endif %}
+{% endblock %}
