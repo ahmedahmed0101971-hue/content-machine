@@ -67,8 +67,15 @@ def check_settings() -> dict:
              "علني ومجدول" if s.get("youtube_audited") else "الفيديوهات بتترفع Private"),
         _row("زرار الطوارئ", WARN if s.get("emergency_stop") else OK, "متفعّل: مفيش نشر" if s.get("emergency_stop") else "مقفول"),
     ]
+    enabled = [c for c in s["channels"].values() if c.get("enabled")]
+    if not enabled:
+        rows.append(_row("القنوات الشغالة", ERR,
+                         "كل القنوات مقفولة: مفيش رادار ولا فيديوهات. افتح الإعدادات وفعّل «القناة شغالة»"))
     for cid, ch in s["channels"].items():
         if not ch.get("enabled"):
+            if ch.get("youtube", {}).get("connected"):
+                rows.append(_row(f"قناة {ch['name']}", ERR,
+                                 "مربوطة بيوتيوب بس مقفولة في الإعدادات: مفيش رادار ولا فيديوهات ليها"))
             continue
         yt = ch.get("youtube", {})
         rows.append(_row(f"قناة {ch['name']}", OK if yt.get("connected") else ERR,
@@ -186,7 +193,17 @@ def check_queue() -> dict:
     day = time.time() - 86400
     pub = c.execute("SELECT COUNT(*) n FROM packages WHERE status IN ('published','scheduled','private') AND updated_at>?",
                     (day,)).fetchone()["n"]
-    rows.append(_row("اترفع آخر 24 ساعة", OK, str(pub)))
+    rows.append(_row("اترفع آخر 24 ساعة", OK if pub else WARN, str(pub) if pub else "0 · مفيش فيديوهات اترفعت"))
+    from .package import ET
+    today = datetime.now(ET).date().isoformat()
+    s = config.load_settings()
+    for cid, ch in s["channels"].items():
+        if not ch.get("enabled"):
+            continue
+        n = c.execute("SELECT COUNT(*) n FROM packages WHERE channel=? AND pkg_date=?", (cid, today)).fetchone()["n"]
+        want = len(ch.get("slots", {}))
+        rows.append(_row(f"فيديوهات النهارده · {ch['name']}", OK if n >= want else WARN if n else ERR,
+                         f"{n} من {want}" + ("" if n else " · Claude ماكتبش سكربتات النهارده")))
     errs = [e for e in db.events(300, "error") if e["ts"] > day]
     rows.append(_row("أخطاء آخر 24 ساعة", ERR if len(errs) >= 3 else WARN if errs else OK,
                      " | ".join(e["message"][:90] for e in errs[:3]) or "مفيش"))
