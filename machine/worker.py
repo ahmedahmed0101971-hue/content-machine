@@ -106,6 +106,8 @@ def _maybe_ytjob() -> None:
     job = ytanalyze.next_queued()
     runner = ytanalyze.run_job
     if not job:
+        if time.time() - db.kv_get("niche_last_done", 0) < 45:
+            return                      # small pause between queued niches so YouTube doesn't see a burst
         job, runner = niche.next_queued(), niche.run_job
     if not job:
         return

@@ -82,3 +82,39 @@ def test_niche_pages(clean_db, monkeypatch):
         assert c.get(f"/niche/{jid}/download/xlsx").status_code == 200
         assert c.post("/niche", data={"csrf": "t", "queries": "  "}).status_code == 302
         assert "value=\"https://x\"" in c.get("/yt?url=https://x").get_data(as_text=True)
+
+
+def test_batch_queue(clean_db, monkeypatch):
+    text = """# Driving test (Spanish)
+examen de manejo en español
+examen teórico de manejo 2026
+
+---
+# Citizenship
+us citizenship test 2026
+n-400 interview questions
+
+budget tips for families"""
+    parsed = niche.parse_batch(text)
+    assert [p[0] for p in parsed] == ["Driving test (Spanish)", "Citizenship", "budget tips for families"]
+    ids = niche.new_batch(text, sort="relevance", period="year", per_query=50, new_months=12, deep=0)
+    assert len(ids) == 3
+    assert niche.queue_position(ids[0]) == 1 and niche.queue_position(ids[2]) == 3
+    assert niche.next_queued()["id"] == ids[0]
+    assert niche.cancel(ids[1]) and niche.get_job(ids[1])["status"] == "cancelled"
+    monkeypatch.setitem(sys.modules, "yt_dlp", fake_search_module())
+    monkeypatch.setattr(niche, "channels_info", lambda i: {})
+    niche.run_job(niche.next_queued())
+    assert niche.next_queued()["id"] == ids[2]               # cancelled one skipped, order kept
+    from machine.web.app import create_app
+    app = create_app()
+    app.config["TESTING"] = True
+    config.update_settings(lambda s: s.update({"password_hash": s.get("password_hash") or "x"}))
+    with app.test_client() as c:
+        with c.session_transaction() as s:
+            s["ok"] = True
+            s["csrf"] = "t"
+        html = c.get("/niche").get_data(as_text=True)
+        assert "ترتيب النيشات" in html and "Driving test (Spanish)" in html and "رقم 1" in html
+        r = c.post("/niche", data={"csrf": "t", "queries": "# A\nq1\n\n# B\nq2", "per_query": "20"})
+        assert r.status_code == 302 and r.headers["Location"].endswith("/niche")

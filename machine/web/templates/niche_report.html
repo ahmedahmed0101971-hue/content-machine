@@ -13,12 +13,12 @@ th.sort{cursor:pointer;white-space:nowrap}th.sort:after{content:" ⇅";opacity:.
 .new{background:#064e3b;color:#6ee7b7;border-radius:999px;padding:1px 8px;font-size:11px}
 </style>{% endblock %}
 {% block body %}
-<header class="top"><div><h1 class="ltr">{{ job.queries|join(' · ') }}</h1>
+<header class="top"><div><h1>{{ job.name or job.queries[0] }}</h1><div class="sub ltr">{{ job.queries|join(' · ') }}</div>
 <div class="sub">{{ job.per_query }} نتيجة لكل بحث · «قناة جديدة» = أقل من {{ job.new_months }} شهر</div></div></header>
 
 {% if job.status != 'done' %}
 <div class="card">{% if job.status == 'failed' %}<p class="flash err">فشل: {{ job.error }}</p>
-{% else %}<p><span class="chip warn">{{ job.progress }}</span></p><p class="sub">الصفحة بتتحدّث لوحدها. البحث بياخد من دقيقة لـ5 دقايق.</p>{% endif %}</div>
+{% else %}<p><span class="chip warn">{% if job.status == 'queued' %}في الطابور، هيبدأ بعد اللي قبله{% else %}{{ job.progress }}{% endif %}</span></p><p class="sub">الصفحة بتتحدّث لوحدها. البحث بياخد من دقيقة لـ5 دقايق.</p>{% endif %}</div>
 {% else %}
 {% set n = rep.niche %}
 <div class="row">

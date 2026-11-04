@@ -325,15 +325,27 @@ def create_app() -> Flask:
         from .. import niche
         if request.method == "POST":
             f = request.form
+            if f.get("cancel"):
+                niche.cancel(f["cancel"])
+                flash("اتشال من الطابور", "ok")
+                return redirect(url_for("niche_page"))
             try:
-                jid = niche.new_job(f.get("queries", ""), f.get("sort", "relevance"), f.get("period", "any"),
-                                    int(f.get("per_query") or 100), int(f.get("new_months") or 12), int(f.get("deep") or 10))
-                flash("البحث بدأ. الصفحة بتتحدّث لوحدها.", "ok")
-                return redirect(url_for("niche_report", jid=jid))
+                ids = niche.new_batch(f.get("queries", ""), sort=f.get("sort", "relevance"), period=f.get("period", "any"),
+                                      per_query=int(f.get("per_query") or 100), new_months=int(f.get("new_months") or 12),
+                                      deep=int(f.get("deep") or 10))
+                if len(ids) == 1:
+                    flash("البحث بدأ. الصفحة بتتحدّث لوحدها.", "ok")
+                    return redirect(url_for("niche_report", jid=ids[0]))
+                flash(f"اتضاف {len(ids)} نيش للطابور. هيتعملوا ورا بعض لوحدهم، وتقدر تقفل الصفحة.", "ok")
             except ValueError as e:
                 flash(str(e), "err")
-                return redirect(url_for("niche_page"))
-        return render_template("niche.html", jobs=niche.list_jobs(), SORT_AR=niche.SORT_AR, PERIOD_AR=niche.PERIOD_AR)
+            return redirect(url_for("niche_page"))
+        jobs = niche.list_jobs()
+        for j in jobs:
+            j["pos"] = niche.queue_position(j["id"])
+        ranked = sorted([j for j in jobs if j["status"] == "done" and j.get("score") is not None],
+                        key=lambda j: j["score"], reverse=True)
+        return render_template("niche.html", jobs=jobs, ranked=ranked, SORT_AR=niche.SORT_AR, PERIOD_AR=niche.PERIOD_AR)
 
     @app.route("/niche/<jid>")
     @login_required

@@ -233,18 +233,64 @@ def niche_score(videos: list[dict], chans: list[dict], new_months: int) -> dict:
 
 
 # ------------------------------------------------------------------ job
-def new_job(queries_text: str, sort: str, period: str, per_query: int, new_months: int, deep: int) -> str:
+def new_job(queries_text: str, sort: str, period: str, per_query: int, new_months: int, deep: int,
+            name: str = "") -> str:
     qs = [q.strip() for q in re.split(r"[\n,؛;]+", queries_text or "") if q.strip()][:10]
     if not qs:
         raise ValueError("اكتب كلمة أو جملة بحث واحدة على الأقل")
     jid = time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:5]
-    job = {"id": jid, "queries": qs, "sort": sort if sort in SORT_AR else "relevance",
+    job = {"id": jid, "name": (name or "").strip()[:60], "queries": qs, "sort": sort if sort in SORT_AR else "relevance",
            "period": period if period in PERIOD_AR else "any", "per_query": max(10, min(int(per_query or 100), 300)),
            "new_months": max(1, min(int(new_months or 12), 60)), "deep": max(0, min(int(deep or 10), 30)),
            "status": "queued", "progress": "في الطابور", "created": time.time(), "error": ""}
     db.kv_set(f"nichejob:{jid}", job)
-    db.kv_set("nichejobs", ([jid] + db.kv_get("nichejobs", []))[:50])
+    db.kv_set("nichejobs", ([jid] + db.kv_get("nichejobs", []))[:100])
+    time.sleep(0.001)
     return jid
+
+
+def parse_batch(text: str) -> list[tuple[str, str]]:
+    """Several niches in one box. Niches are separated by an empty line (or a line of ---).
+    A first line starting with # is the niche's name:
+        # اختبار السواقة
+        examen de manejo en español
+        ...
+        (empty line)
+        # امتحان الجنسية
+        us citizenship test 2026
+    Returns [(name, queries_text), ...] (max 20 niches)."""
+    blocks = re.split(r"\n\s*(?:-{3,}\s*)?\n", (text or "").replace("\r\n", "\n").strip())
+    out = []
+    for b in blocks:
+        lines = [l.strip() for l in b.split("\n") if l.strip() and not re.fullmatch(r"-{3,}", l.strip())]
+        if not lines:
+            continue
+        name = ""
+        if lines[0].startswith("#"):
+            name = lines.pop(0).lstrip("#").strip()
+        if lines:
+            out.append((name or lines[0], "\n".join(lines)))
+    return out[:20]
+
+
+def new_batch(text: str, **opts) -> list[str]:
+    niches = parse_batch(text)
+    if not niches:
+        raise ValueError("اكتب نيش واحد على الأقل")
+    return [new_job(q, name=n, **opts) for n, q in niches]
+
+
+def cancel(jid: str) -> bool:
+    j = get_job(jid)
+    if j and j["status"] == "queued":
+        _save(j, status="cancelled", progress="اتلغى")
+        return True
+    return False
+
+
+def queue_position(jid: str) -> int | None:
+    q = [j["id"] for j in reversed(list_jobs()) if j["status"] in ("queued", "running")]
+    return q.index(jid) + 1 if jid in q else None
 
 
 def get_job(jid):
@@ -317,7 +363,7 @@ def run_job(job: dict) -> dict:
                 "last_upload": max((u["published"] for u in ups), default="")[:10],
                 "top_recent": sorted(ups, key=lambda u: u["views"] or 0, reverse=True)[:3],
             }
-        rep = {"job": {k: job[k] for k in ("id", "queries", "sort", "period", "per_query", "new_months")},
+        rep = {"job": {k: job.get(k) for k in ("id", "name", "queries", "sort", "period", "per_query", "new_months")},
                "generated": datetime.now(timezone.utc).isoformat(), "warnings": warnings,
                "niche": res["niche"], "channels": res["channels"],
                "top_videos": sorted(videos, key=lambda v: v.get("views") or 0, reverse=True)[:60]}
@@ -337,6 +383,8 @@ def run_job(job: dict) -> dict:
     except Exception as e:
         _save(job, status="failed", progress="فشل", error=str(e)[:400], finished=time.time())
         raise
+    finally:
+        db.kv_set("niche_last_done", time.time())
 
 
 def _to_drive(job, rep):
@@ -348,7 +396,7 @@ def _to_drive(job, rep):
         drive = get_drive()
         root = ensure_drive_folders(drive, config.load_settings())["_system"]
         folder = drive.ensure_folder("niche_reports", root)
-        slug = re.sub(r"[^\w-]+", "-", job["queries"][0])[:40].strip("-") or "niche"
+        slug = re.sub(r"[^\w-]+", "-", job.get("name") or job["queries"][0])[:40].strip("-") or "niche"
         drive.write_json(folder, f"{slug}-{job['id']}.json", rep)
     except Exception as e:
         rep.setdefault("warnings", []).append(f"Drive: {str(e)[:150]}")

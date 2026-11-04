@@ -7,8 +7,9 @@
 
 <form method="post" class="card">
   <input type="hidden" name="csrf" value="{{ csrf }}">
-  <label for="queries">كلمات البحث (كل جملة في سطر · لحد 10)</label>
-  <textarea id="queries" name="queries" class="ltr" placeholder="us citizenship test 2026&#10;social security payment dates&#10;medicare explained" required></textarea>
+  <label for="queries">النيشات وكلمات البحث</label>
+  <div class="sub">كل جملة بحث في سطر (لحد 10 لكل نيش). <b>علشان تحط كذا نيش مرة واحدة:</b> سيب <b>سطر فاضي</b> بين كل نيش والتاني، واكتب اسم النيش في أول سطر بعد علامة #. النيشات بتتعمل ورا بعض لوحدها (طابور)، لحد 20 نيش.</div>
+  <textarea id="queries" name="queries" class="ltr" style="min-height:260px" placeholder="# Driving test (Spanish)&#10;examen de manejo en español&#10;examen teórico de manejo 2026&#10;&#10;# Citizenship test&#10;us citizenship test 2026&#10;n-400 interview questions" required></textarea>
   <div class="row">
     <div><label for="sort">ترتيب النتايج</label><select id="sort" name="sort">{% for k, v in SORT_AR.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
     <div><label for="period">فيديوهات اتنشرت</label><select id="period" name="period">{% for k, v in PERIOD_AR.items() %}<option value="{{ k }}" {{ 'selected' if k == 'year' }}>{{ v }}</option>{% endfor %}</select></div>
@@ -20,13 +21,23 @@
   <p class="sub">البحث نفسه ببلاش ومن غير حدود. تاريخ إنشاء القنوات والمشتركين بيتجابوا بربط يوتيوب اللي عندنا (حاجة بسيطة جداً من الحصة اليومية المجانية).</p>
 </form>
 
-<h2>عمليات البحث</h2>
+{% if ranked %}
+<h2>ترتيب النيشات (أعلى فرصة الأول)</h2>
+<div class="card"><div class="tablewrap"><table>
+<tr><th>#</th><th>النيش</th><th>درجة الفرصة</th><th>الحكم</th></tr>
+{% for j in ranked %}<tr><td>{{ loop.index }}</td><td><a href="{{ url_for('niche_report', jid=j.id) }}">{{ j.name or j.queries[0] }}</a></td>
+<td><b>{{ j.score }}</b>/100</td><td class="sub">{{ '🟢 قوية' if j.score >= 60 else '🟡 متوسطة' if j.score >= 40 else '🔴 صعبة' }}</td></tr>{% endfor %}
+</table></div></div>
+{% endif %}
+
+<h2>الطابور وعمليات البحث</h2>
 <div class="card"><div class="tablewrap"><table>
 <tr><th>البحث</th><th>الحالة</th><th>الإعدادات</th><th>بدأ</th><th></th></tr>
 {% for j in jobs %}
 <tr>
-  <td class="ltr"><a href="{{ url_for('niche_report', jid=j.id) }}">{{ j.queries|join(' · ') }}</a></td>
-  <td>{% if j.status == 'done' %}<span class="chip ok">{{ j.progress }}</span>{% elif j.status == 'failed' %}<span class="chip err">فشل</span>{% else %}<span class="chip warn">{{ j.progress }}</span>{% endif %}</td>
+  <td><a href="{{ url_for('niche_report', jid=j.id) }}">{{ j.name or j.queries[0] }}</a><div class="sub ltr">{{ j.queries|join(' · ') }}</div></td>
+  <td>{% if j.status == 'done' %}<span class="chip ok">{{ j.progress }}</span>{% elif j.status == 'failed' %}<span class="chip err">فشل</span>{% elif j.status == 'cancelled' %}<span class="chip">اتلغى</span>{% elif j.status == 'running' %}<span class="chip warn">شغال دلوقتي: {{ j.progress }}</span>{% else %}<span class="chip warn">في الطابور{% if j.pos %} · رقم {{ j.pos }}{% endif %}</span>
+    <form method="post" style="display:inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn small" name="cancel" value="{{ j.id }}">شيله</button></form>{% endif %}</td>
   <td class="sub">{{ SORT_AR[j.sort] }} · {{ PERIOD_AR[j.period] }} · {{ j.per_query }} نتيجة</td>
   <td class="sub">{{ j.created|cairo }}</td>
   <td><form method="post" action="{{ url_for('niche_delete', jid=j.id) }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn small">مسح</button></form></td>
