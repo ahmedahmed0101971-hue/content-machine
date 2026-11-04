@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}باحث النيشات{% endblock %}
+{% block head %}{% if jobs and (jobs|selectattr('status','in',['queued','running'])|list) %}<meta http-equiv="refresh" content="10">{% endif %}{% endblock %}
+{% block body %}
+<header class="top"><div><h1>باحث النيشات</h1>
+<div class="sub">زي vidIQ: اكتب النيش اللي بتدور عليه، والبرنامج يبحث في يوتيوب زي المشاهد بالظبط، ويجيب كل القنوات اللي طالعة في النتايج، وتاريخ إنشاء كل قناة، ومشتركينها ومشاهداتها. وبعدين يقولك: هل فيه قنوات <b>جديدة</b> قدرت تكسب هنا؟ لو أيوه يبقى فيه فرصة. لو الكبار القدام بس هما اللي طالعين، يبقى المنافسة صعبة.</div></div></header>
+
+<form method="post" class="card">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label for="queries">كلمات البحث (كل جملة في سطر · لحد 10)</label>
+  <textarea id="queries" name="queries" class="ltr" placeholder="us citizenship test 2026&#10;social security payment dates&#10;medicare explained" required></textarea>
+  <div class="row">
+    <div><label for="sort">ترتيب النتايج</label><select id="sort" name="sort">{% for k, v in SORT_AR.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
+    <div><label for="period">فيديوهات اتنشرت</label><select id="period" name="period">{% for k, v in PERIOD_AR.items() %}<option value="{{ k }}" {{ 'selected' if k == 'year' }}>{{ v }}</option>{% endfor %}</select></div>
+    <div><label for="per_query">نتايج لكل بحث</label><input id="per_query" name="per_query" type="number" min="10" max="300" value="120" class="ltr"></div>
+    <div><label for="new_months">"قناة جديدة" = عمرها أقل من (شهر)</label><input id="new_months" name="new_months" type="number" min="1" max="60" value="12" class="ltr"></div>
+    <div><label for="deep">حلّل آخر فيديوهات أقوى</label><input id="deep" name="deep" type="number" min="0" max="30" value="12" class="ltr"><div class="sub">قناة</div></div>
+  </div>
+  <p><button class="btn primary">ابحث وحلّل النيش</button></p>
+  <p class="sub">البحث نفسه ببلاش ومن غير حدود. تاريخ إنشاء القنوات والمشتركين بيتجابوا بربط يوتيوب اللي عندنا (حاجة بسيطة جداً من الحصة اليومية المجانية).</p>
+</form>
+
+<h2>عمليات البحث</h2>
+<div class="card"><div class="tablewrap"><table>
+<tr><th>البحث</th><th>الحالة</th><th>الإعدادات</th><th>بدأ</th><th></th></tr>
+{% for j in jobs %}
+<tr>
+  <td class="ltr"><a href="{{ url_for('niche_report', jid=j.id) }}">{{ j.queries|join(' · ') }}</a></td>
+  <td>{% if j.status == 'done' %}<span class="chip ok">{{ j.progress }}</span>{% elif j.status == 'failed' %}<span class="chip err">فشل</span>{% else %}<span class="chip warn">{{ j.progress }}</span>{% endif %}</td>
+  <td class="sub">{{ SORT_AR[j.sort] }} · {{ PERIOD_AR[j.period] }} · {{ j.per_query }} نتيجة</td>
+  <td class="sub">{{ j.created|cairo }}</td>
+  <td><form method="post" action="{{ url_for('niche_delete', jid=j.id) }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn small">مسح</button></form></td>
+</tr>
+{% else %}<tr><td colspan="5" class="empty">لسه مفيش</td></tr>{% endfor %}
+</table></div></div>
+{% endblock %}

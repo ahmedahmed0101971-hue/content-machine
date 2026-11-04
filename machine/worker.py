@@ -102,15 +102,19 @@ def _maybe_ytjob() -> None:
     from . import ytanalyze
     if _yt_thread is not None and _yt_thread.is_alive():
         return
+    from . import niche
     job = ytanalyze.next_queued()
+    runner = ytanalyze.run_job
+    if not job:
+        job, runner = niche.next_queued(), niche.run_job
     if not job:
         return
 
     def run():
         try:
-            ytanalyze.run_job(job)
+            runner(job)
         except Exception as e:
-            log.warning("channel analysis failed: %s", e)
+            log.warning("analysis job failed: %s", e)
     _yt_thread = threading.Thread(target=run, daemon=True, name="ytjob")
     _yt_thread.start()
 
@@ -168,10 +172,12 @@ def recover() -> None:
         db.pkg_update(p["id"], status="ready")
     try:
         from . import ytanalyze
-        for j in ytanalyze.list_jobs():
-            if j["status"] == "running":          # interrupted by a restart -> run again
-                j["status"], j["progress"] = "queued", "في الطابور (اتعاد بعد restart)"
-                db.kv_set(f"ytjob:{j['id']}", j)
+        from . import niche
+        for mod, key in ((ytanalyze, "ytjob"), (niche, "nichejob")):
+            for j in mod.list_jobs():
+                if j["status"] == "running":      # interrupted by a restart -> run again
+                    j["status"], j["progress"] = "queued", "في الطابور (اتعاد بعد restart)"
+                    db.kv_set(f"{key}:{j['id']}", j)
     except Exception:
         pass
     try:

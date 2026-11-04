@@ -23,7 +23,7 @@ from ..google.http import GoogleError
 
 CAIRO = ZoneInfo("Africa/Cairo")
 ET = ZoneInfo("America/New_York")
-NAV = [("review", "المراجعة"), ("radar_page", "الرادار"), ("settings_page", "الإعدادات"), ("sources_page", "المصادر"), ("log_page", "السجل"), ("yt_page", "تحليل قناة"), ("health_page", "الفحص")]
+NAV = [("review", "المراجعة"), ("radar_page", "الرادار"), ("settings_page", "الإعدادات"), ("sources_page", "المصادر"), ("log_page", "السجل"), ("niche_page", "باحث النيشات"), ("yt_page", "تحليل قناة"), ("health_page", "الفحص")]
 
 
 def create_app() -> Flask:
@@ -319,6 +319,53 @@ def create_app() -> Flask:
 
     # ---------------------------------------------------------------- log
     # ---------------------------------------------------------------- channel analyzer
+    @app.route("/niche", methods=["GET", "POST"])
+    @login_required
+    def niche_page():
+        from .. import niche
+        if request.method == "POST":
+            f = request.form
+            try:
+                jid = niche.new_job(f.get("queries", ""), f.get("sort", "relevance"), f.get("period", "any"),
+                                    int(f.get("per_query") or 100), int(f.get("new_months") or 12), int(f.get("deep") or 10))
+                flash("البحث بدأ. الصفحة بتتحدّث لوحدها.", "ok")
+                return redirect(url_for("niche_report", jid=jid))
+            except ValueError as e:
+                flash(str(e), "err")
+                return redirect(url_for("niche_page"))
+        return render_template("niche.html", jobs=niche.list_jobs(), SORT_AR=niche.SORT_AR, PERIOD_AR=niche.PERIOD_AR)
+
+    @app.route("/niche/<jid>")
+    @login_required
+    def niche_report(jid):
+        from .. import niche
+        job = niche.get_job(jid) or abort(404)
+        rep = niche.load_report(jid) if job["status"] == "done" else None
+        return render_template("niche_report.html", job=job, rep=rep)
+
+    @app.route("/niche/<jid>/download/<fmt>")
+    @login_required
+    def niche_download(jid, fmt):
+        from .. import niche
+        if not re.fullmatch(r"[\w-]+", jid) or fmt not in ("xlsx", "json"):
+            abort(404)
+        job = niche.get_job(jid) or abort(404)
+        p = niche.reports_dir() / f"{jid}.{fmt}"
+        if not p.exists():
+            abort(404)
+        name = re.sub(r"[^\w-]+", "-", job["queries"][0])[:40] or "niche"
+        return send_file(str(p), as_attachment=True, download_name=f"niche-{name}-{jid}.{fmt}")
+
+    @app.post("/niche/<jid>/delete")
+    @login_required
+    def niche_delete(jid):
+        from .. import niche
+        db.kv_set("nichejobs", [i for i in db.kv_get("nichejobs", []) if i != jid])
+        for ext in ("json", "xlsx"):
+            (niche.reports_dir() / f"{jid}.{ext}").unlink(missing_ok=True)
+        flash("اتمسح", "ok")
+        return redirect(url_for("niche_page"))
+
     @app.route("/yt", methods=["GET", "POST"])
     @login_required
     def yt_page():
@@ -333,7 +380,8 @@ def create_app() -> Flask:
             except ValueError as e:
                 flash(str(e), "err")
                 return redirect(url_for("yt_page"))
-        return render_template("yt.html", jobs=ytanalyze.list_jobs(), tabs=ytanalyze.TABS, maxv=ytanalyze.MAX_VIDEOS)
+        return render_template("yt.html", jobs=ytanalyze.list_jobs(), tabs=ytanalyze.TABS, maxv=ytanalyze.MAX_VIDEOS,
+                               prefill=request.args.get("url", ""))
 
     @app.route("/yt/<jid>")
     @login_required

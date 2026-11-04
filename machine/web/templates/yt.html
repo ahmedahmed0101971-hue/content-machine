@@ -8,7 +8,7 @@
 <form method="post" class="card">
   <input type="hidden" name="csrf" value="{{ csrf }}">
   <label for="url">لينك القناة أو @اسمها</label>
-  <input id="url" name="url" class="ltr" placeholder="https://www.youtube.com/@ChannelName" required>
+  <input id="url" name="url" class="ltr" placeholder="https://www.youtube.com/@ChannelName" value="{{ prefill }}" required>
   <p><strong>هجيب إيه:</strong></p>
   <div class="row">
     {% for k, v in tabs.items() %}<label class="chip"><input type="checkbox" name="tab_{{ k }}" {{ 'checked' if k != 'streams' }}> {{ v }}</label>{% endfor %}

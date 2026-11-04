@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}نيش: {{ job.queries[0] }}{% endblock %}
+{% block head %}{% if job.status in ['queued','running'] %}<meta http-equiv="refresh" content="8">{% endif %}
+<style>
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.kpi{background:#111a2e;border-radius:12px;padding:12px}.kpi b{display:block;font-size:20px}.kpi span{font-size:12px;opacity:.75}
+.big{font-size:44px;font-weight:800}.meter{height:10px;border-radius:5px;background:#1a2440;overflow:hidden}.meter i{display:block;height:100%;background:var(--green,#34d399)}
+.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.thumbs a{display:block;color:inherit;text-decoration:none}.thumbs img{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:10px;background:#111}
+.thumbs .t{font-size:13px;margin-top:6px;direction:ltr;text-align:left}.thumbs .m{font-size:12px;opacity:.7;direction:ltr;text-align:left}
+table.ct td,table.ct th{font-size:12.5px;vertical-align:top}table.ct img.av{width:36px;height:36px;border-radius:50%}
+th.sort{cursor:pointer;white-space:nowrap}th.sort:after{content:" ⇅";opacity:.4}
+.new{background:#064e3b;color:#6ee7b7;border-radius:999px;padding:1px 8px;font-size:11px}
+</style>{% endblock %}
+{% block body %}
+<header class="top"><div><h1 class="ltr">{{ job.queries|join(' · ') }}</h1>
+<div class="sub">{{ job.per_query }} نتيجة لكل بحث · «قناة جديدة» = أقل من {{ job.new_months }} شهر</div></div></header>
+
+{% if job.status != 'done' %}
+<div class="card">{% if job.status == 'failed' %}<p class="flash err">فشل: {{ job.error }}</p>
+{% else %}<p><span class="chip warn">{{ job.progress }}</span></p><p class="sub">الصفحة بتتحدّث لوحدها. البحث بياخد من دقيقة لـ5 دقايق.</p>{% endif %}</div>
+{% else %}
+{% set n = rep.niche %}
+<div class="row">
+  <a class="btn primary" href="{{ url_for('niche_download', jid=job.id, fmt='xlsx') }}">تحميل Excel</a>
+  <a class="btn" href="{{ url_for('niche_download', jid=job.id, fmt='json') }}">JSON</a>
+</div>
+{% if rep.warnings %}<p class="flash warn">{{ rep.warnings|join(' · ') }}</p>{% endif %}
+
+<div class="card">
+  <div class="row" style="align-items:center;gap:20px">
+    <div class="big">{{ n.score }}<span class="sub">/100</span></div>
+    <div><h3 style="margin:0">{{ n.verdict }}</h3><div class="sub">درجة الفرصة = الطلب + الانفتاح للقنوات الجديدة − المنافسة</div></div>
+  </div>
+  {% for label, val in [('الطلب (الناس بتتفرج قد إيه)', n.demand), ('الانفتاح (القنوات الجديدة بتكسب؟)', n.openness), ('المنافسة (قد إيه صعبة)', n.competition)] %}
+  <p class="sub" style="margin:10px 0 4px">{{ label }}: <b>{{ val }}</b>/100</p><div class="meter"><i style="width:{{ val }}%"></i></div>
+  {% endfor %}
+  <ul>{% for e in n.explain %}<li>{{ e }}</li>{% endfor %}</ul>
+</div>
+
+<div class="card"><div class="kpis">
+  <div class="kpi"><b>{{ n.channels_seen }}</b><span>قناة طلعت في النتايج</span></div>
+  <div class="kpi"><b>{{ n.new_channels }}</b><span>قناة جديدة (أقل من {{ n.new_months }} شهر)</span></div>
+  <div class="kpi"><b>{{ n.new_winners }}</b><span>قناة جديدة بتكسب مشاهدات</span></div>
+  <div class="kpi"><b>{{ n.share_views_new_channels_pct }}%</b><span>من المشاهدات راحت لقنوات جديدة</span></div>
+  <div class="kpi"><b>{{ n.giants }}</b><span>قناة فوق مليون مشترك</span></div>
+  <div class="kpi"><b>{{ n.old_channels }}</b><span>قناة عمرها 5 سنين+</span></div>
+  <div class="kpi"><b>{{ '{:,}'.format((n.median_views or 0)|int) }}</b><span>مشاهدات الفيديو العادي</span></div>
+  <div class="kpi"><b>{{ n.top10pct_share }}%</b><span>من المشاهدات لأعلى 10% فيديو</span></div>
+  <div class="kpi"><b>{{ n.shorts_pct }}%</b><span>شورتس في النتايج</span></div>
+  <div class="kpi"><b>{{ n.median_duration_min }} د</b><span>المدة العادية</span></div>
+</div></div>
+
+{% if rep.new_channel_videos %}
+<h2>فيديوهات القنوات الجديدة اللي كسبت 🔥</h2>
+<div class="card thumbs">{% for v in rep.new_channel_videos[:12] %}
+<a href="https://www.youtube.com/watch?v={{ v.id }}" target="_blank" rel="noopener"><img loading="lazy" src="{{ v.thumbnail }}" alt=""><div class="t">{{ v.title }}</div>
+<div class="m">{{ v.channel }} · {{ '{:,}'.format(v.views or 0) }} views{% if v.duration %} · {{ (v.duration / 60)|round(1) }} min{% endif %}</div></a>
+{% endfor %}</div>
+{% endif %}
+
+<h2>القنوات ({{ rep.channels|length }})</h2>
+<div class="row">
+  <label class="chip"><input type="checkbox" id="onlynew" onchange="filt()"> الجديدة بس</label>
+  <input id="q" class="ltr" placeholder="ابحث باسم القناة…" oninput="filt()" style="max-width:260px">
+</div>
+<div class="card"><div class="tablewrap"><table class="ct" id="ct">
+<thead><tr><th></th><th class="sort" data-k="n">القناة</th><th class="sort" data-k="a">عمرها</th><th class="sort" data-k="s">مشتركين</th><th class="sort" data-k="tv">مشاهدات</th><th class="sort" data-k="vv">م/فيديو</th><th class="sort" data-k="vd">م/يوم</th><th class="sort" data-k="vw">فيديو/أسبوع</th><th class="sort" data-k="h">في النتايج</th><th class="sort" data-k="m">قوة النمو</th><th>آخر 30 يوم</th><th></th></tr></thead>
+<tbody>{% for c in rep.channels %}{% set rc = c.recent or {} %}
+<tr data-new="{{ 1 if c.is_new else 0 }}" data-n="{{ c.name|lower }}" data-a="{{ c.age_days or 99999 }}" data-s="{{ c.subs or 0 }}" data-tv="{{ c.total_views or 0 }}" data-vv="{{ c.views_per_video or 0 }}" data-vd="{{ c.views_per_day or 0 }}" data-vw="{{ c.videos_per_week or 0 }}" data-h="{{ c.hits }}" data-m="{{ c.momentum or 0 }}">
+<td>{% if c.avatar %}<img class="av" loading="lazy" src="{{ c.avatar }}" alt="">{% endif %}</td>
+<td class="ltr"><a href="{{ c.url }}" target="_blank" rel="noopener">{{ c.name }}</a> {% if c.is_new %}<span class="new">جديدة</span>{% endif %}
+  <div class="sub">{{ c.created }}{% if c.country %} · {{ c.country }}{% endif %}</div>
+  {% if c.best_video %}<div class="sub">أقوى نتيجة: {{ c.best_video.title[:70] }} ({{ '{:,}'.format(c.best_video.views or 0) }})</div>{% endif %}</td>
+<td>{{ c.age_label }}</td>
+<td>{{ '{:,}'.format(c.subs) if c.subs is not none else '—' }}</td>
+<td>{{ '{:,}'.format(c.total_views) if c.total_views else '—' }}</td>
+<td>{{ '{:,}'.format(c.views_per_video) if c.views_per_video else '—' }}</td>
+<td>{{ '{:,}'.format(c.views_per_day) if c.views_per_day else '—' }}</td>
+<td>{{ c.videos_per_week or '—' }}</td>
+<td>{{ c.hits }}</td>
+<td><b>{{ c.momentum or '—' }}</b></td>
+<td class="sub">{% if rc %}{{ rc.last30_uploads }} فيديو · وسيط {{ '{:,}'.format((rc.last30_median_views or 0)|int) }}{% if rc.shorts_pct is not none %} · {{ rc.shorts_pct }}% شورتس{% endif %}{% else %}—{% endif %}</td>
+<td><a class="btn small" href="{{ url_for('yt_page', url=c.url) }}">حلّلها</a></td>
+</tr>{% endfor %}</tbody></table></div></div>
+<p class="sub">قوة النمو = مشاهدات القناة في اليوم من ساعة ما اتعملت، مع وزن أكبر للقنوات الصغيرة في السن. «حلّلها» بيفتح تحليل القناة الكامل.</p>
+
+<h2>أقوى الفيديوهات في النتايج</h2>
+<div class="card thumbs">{% for v in rep.top_videos[:24] %}
+<a href="https://www.youtube.com/watch?v={{ v.id }}" target="_blank" rel="noopener"><img loading="lazy" src="{{ v.thumbnail }}" alt=""><div class="t">{{ v.title }}</div>
+<div class="m">{{ v.channel }} · {{ '{:,}'.format(v.views or 0) }} views</div></a>
+{% endfor %}</div>
+<script>
+function filt(){const q=document.getElementById('q').value.toLowerCase(),o=document.getElementById('onlynew').checked;
+document.querySelectorAll('#ct tbody tr').forEach(r=>{r.style.display=((!q||r.dataset.n.includes(q))&&(!o||r.dataset.new==='1'))?'':'none'})}
+document.querySelectorAll('#ct th.sort').forEach(th=>th.addEventListener('click',()=>{const k=th.dataset.k,tb=document.querySelector('#ct tbody');
+const rows=[...tb.rows],asc=th.dataset.asc!=='1';th.dataset.asc=asc?'1':'0';
+rows.sort((a,b)=>{let x=a.dataset[k],y=b.dataset[k];if(k!=='n'){x=+x;y=+y}return (x>y?1:x<y?-1:0)*(asc?1:-1)});rows.forEach(r=>tb.appendChild(r))}));
+</script>
+{% endif %}
+{% endblock %}
