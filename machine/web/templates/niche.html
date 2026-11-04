@@ -23,11 +23,22 @@
 
 {% if ranked %}
 <h2>ترتيب النيشات (أعلى فرصة الأول)</h2>
-<div class="card"><div class="tablewrap"><table>
-<tr><th>#</th><th>النيش</th><th>درجة الفرصة</th><th>الحكم</th></tr>
-{% for j in ranked %}<tr><td>{{ loop.index }}</td><td><a href="{{ url_for('niche_report', jid=j.id) }}">{{ j.name or j.queries[0] }}</a></td>
-<td><b>{{ j.score }}</b>/100</td><td class="sub">{{ '🟢 قوية' if j.score >= 60 else '🟡 متوسطة' if j.score >= 40 else '🔴 صعبة' }}</td></tr>{% endfor %}
-</table></div></div>
+<form method="post" action="{{ url_for('niche_combined') }}" class="card">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <p class="sub">علّم على النيشات اللي عايز تقارنها، وحمّلهم في <b>ملف واحد</b> (فيه شيت مقارنة + شيت لكل نيش)، أو احفظهم في درايف وقول لـClaude «قارن النيشات».</p>
+  <div class="row"><label class="chip"><input type="checkbox" onclick="document.querySelectorAll('input[name=sel]').forEach(c=>c.checked=this.checked)"> اختار الكل</label></div>
+  <div class="tablewrap"><table>
+  <tr><th></th><th>#</th><th>النيش</th><th>درجة الفرصة</th><th>الحكم</th></tr>
+  {% for j in ranked %}<tr><td><input type="checkbox" name="sel" value="{{ j.id }}" aria-label="اختار {{ j.name or j.queries[0] }}"></td><td>{{ loop.index }}</td>
+  <td><a href="{{ url_for('niche_report', jid=j.id) }}">{{ j.name or j.queries[0] }}</a></td>
+  <td><b>{{ j.score }}</b>/100</td><td class="sub">{{ '🟢 قوية' if j.score >= 60 else '🟡 متوسطة' if j.score >= 40 else '🔴 صعبة' }}</td></tr>{% endfor %}
+  </table></div>
+  <div class="row">
+    <button class="btn primary" name="fmt" value="xlsx">تحميل المحدد Excel</button>
+    <button class="btn" name="fmt" value="json">تحميل المحدد JSON</button>
+    <button class="btn" name="fmt" value="drive">احفظ المحدد في درايف لـClaude</button>
+  </div>
+</form>
 {% endif %}
 
 <h2>الطابور وعمليات البحث</h2>

@@ -368,6 +368,24 @@ def create_app() -> Flask:
         name = re.sub(r"[^\w-]+", "-", job["queries"][0])[:40] or "niche"
         return send_file(str(p), as_attachment=True, download_name=f"niche-{name}-{jid}.{fmt}")
 
+    @app.post("/niche/combined")
+    @login_required
+    def niche_combined():
+        from .. import niche
+        ids = [i for i in request.form.getlist("sel") if re.fullmatch(r"[\w-]+", i)]
+        fmt = request.form.get("fmt", "xlsx")
+        try:
+            pack, stem = niche.save_combined(ids)
+        except ValueError as e:
+            flash(str(e), "err")
+            return redirect(url_for("niche_page"))
+        if fmt == "drive":
+            flash(f"اتحفظ ملف مقارنة لـ{pack['count']} نيش في درايف ({stem}.json). قول لـClaude «قارن النيشات» وهو يقراه."
+                  if pack.get("drive") else "درايف مش متاح دلوقتي. حمّل الملف وابعته لـClaude.", "ok" if pack.get("drive") else "err")
+            return redirect(url_for("niche_page"))
+        fmt = fmt if fmt in ("xlsx", "json") else "xlsx"
+        return send_file(str(niche.reports_dir() / f"{stem}.{fmt}"), as_attachment=True, download_name=f"niches-{stem}.{fmt}")
+
     @app.post("/niche/<jid>/delete")
     @login_required
     def niche_delete(jid):

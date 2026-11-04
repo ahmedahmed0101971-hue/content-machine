@@ -448,3 +448,103 @@ def export_xlsx(rep, path):
                   x["query"], f"https://www.youtube.com/watch?v={x['id']}"])
     v.column_dimensions["A"].width = 70
     wb.save(path)
+
+
+# ------------------------------------------------------------------ combined export (several niches in one file)
+COMPARE_COLS = [("name", "النيش"), ("score", "درجة الفرصة"), ("verdict", "الحكم"), ("demand", "الطلب"),
+                ("openness", "الانفتاح"), ("competition", "المنافسة"), ("channels_seen", "قنوات في النتايج"),
+                ("new_channels", "قنوات جديدة"), ("new_winners", "جديدة بتكسب"),
+                ("share_views_new_channels_pct", "% مشاهدات للقنوات الجديدة"), ("giants", "قنوات +مليون"),
+                ("giant_results_pct", "% نتايج للكبار"), ("old_channels", "قنوات 5 سنين+"), ("median_views", "مشاهدات الفيديو العادي"),
+                ("top10pct_share", "% مشاهدات لأعلى 10%"), ("shorts_pct", "% شورتس"), ("median_duration_min", "المدة العادية (د)")]
+
+
+def combined(jids: list[str]) -> dict:
+    """One package with several finished niches, ranked by score: for downloading and for Claude."""
+    niches = []
+    for jid in jids:
+        job, rep = get_job(jid), load_report(jid)
+        if not job or not rep:
+            continue
+        name = job.get("name") or job["queries"][0]
+        chans = [{k: v for k, v in c.items() if k not in ("uploads", "best_video")} |
+                 {"best_video": {k: (c.get("best_video") or {}).get(k) for k in ("id", "title", "views", "duration")}}
+                 for c in rep["channels"][:60]]
+        niches.append({"id": jid, "name": name, "queries": job["queries"],
+                       "settings": {k: job.get(k) for k in ("sort", "period", "per_query", "new_months")},
+                       "niche": rep["niche"], "channels": chans,
+                       "new_channel_videos": [{k: v.get(k) for k in ("id", "title", "channel", "views", "duration", "short")}
+                                              for v in rep.get("new_channel_videos", [])[:20]],
+                       "top_videos": [{k: v.get(k) for k in ("id", "title", "channel", "views", "duration", "short")}
+                                      for v in rep.get("top_videos", [])[:30]]})
+    niches.sort(key=lambda n: n["niche"]["score"], reverse=True)
+    return {"generated": datetime.now(timezone.utc).isoformat(), "count": len(niches),
+            "ranking": [{"rank": i + 1, "name": n["name"], **{k: n["niche"].get(k) for k, _ in COMPARE_COLS if k != "name"}}
+                        for i, n in enumerate(niches)],
+            "how_to_read": "score = 0.35*demand + 0.45*openness + 0.20*(100-competition). openness = new channels "
+                           "(younger than new_months) that win views in this search; competition = giants & old channels.",
+            "niches": niches}
+
+
+def export_combined_xlsx(pack: dict, path) -> None:
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "مقارنة النيشات"
+    ws.sheet_view.rightToLeft = True
+    ws.append(["#"] + [h for _, h in COMPARE_COLS])
+    for c in ws[1]:
+        c.font = Font(bold=True, color="FFFFFF")
+        c.fill = PatternFill("solid", fgColor="1F2937")
+    for r in pack["ranking"]:
+        ws.append([r["rank"]] + [r.get(k) for k, _ in COMPARE_COLS])
+    ws.column_dimensions["B"].width = 30
+    ws.column_dimensions["D"].width = 50
+    ws.freeze_panes = "C2"
+    used = set()
+    for n in pack["niches"]:
+        title = re.sub(r"[\[\]\:\*\?\/\\]", " ", n["name"])[:28].strip() or "niche"
+        base, k = title, 2
+        while title in used:
+            title = f"{base[:25]} {k}"
+            k += 1
+        used.add(title)
+        s = wb.create_sheet(title)
+        s.sheet_view.rightToLeft = True
+        s.append(["البحث", " | ".join(n["queries"])])
+        s.append(["الفرصة", n["niche"]["score"], n["niche"]["verdict"]])
+        for e in n["niche"].get("explain", []):
+            s.append(["", e])
+        s.append([])
+        s.append(["القناة", "الرابط", "اتعملت", "عمرها", "جديدة", "مشتركين", "مشاهدات", "فيديوهات", "م/فيديو", "م/يوم",
+                  "في النتايج", "قوة النمو"])
+        for c in n["channels"]:
+            s.append([c.get("name"), c.get("url"), c.get("created"), c.get("age_label"), "✓" if c.get("is_new") else "",
+                      c.get("subs"), c.get("total_views"), c.get("videos"), c.get("views_per_video"), c.get("views_per_day"),
+                      c.get("hits"), c.get("momentum")])
+        s.column_dimensions["A"].width = 30
+        s.column_dimensions["B"].width = 34
+    wb.save(path)
+
+
+def save_combined(jids: list[str]) -> tuple[dict, str]:
+    """Builds the combined pack, writes json + xlsx locally and a copy to Drive. Returns (pack, file stem)."""
+    pack = combined(jids)
+    if not pack["niches"]:
+        raise ValueError("اختار نيش واحد على الأقل من اللي خلصوا")
+    stem = "compare-" + time.strftime("%Y%m%d-%H%M%S")
+    reports_dir().mkdir(parents=True, exist_ok=True)
+    (reports_dir() / f"{stem}.json").write_text(json.dumps(pack, ensure_ascii=False, default=str), encoding="utf-8")
+    export_combined_xlsx(pack, reports_dir() / f"{stem}.xlsx")
+    try:
+        if config.OFFLINE or config.load_token("drive"):
+            from .google.drive import get_drive
+            from .pipeline import ensure_drive_folders
+            drive = get_drive()
+            root = ensure_drive_folders(drive, config.load_settings())["_system"]
+            drive.write_json(drive.ensure_folder("niche_reports", root), f"{stem}.json", pack)
+            pack["drive"] = True
+    except Exception:
+        pack["drive"] = False
+    return pack, stem

@@ -118,3 +118,33 @@ budget tips for families"""
         assert "ترتيب النيشات" in html and "Driving test (Spanish)" in html and "رقم 1" in html
         r = c.post("/niche", data={"csrf": "t", "queries": "# A\nq1\n\n# B\nq2", "per_query": "20"})
         assert r.status_code == 302 and r.headers["Location"].endswith("/niche")
+
+
+def test_combined_export(clean_db, monkeypatch):
+    monkeypatch.setitem(sys.modules, "yt_dlp", fake_search_module())
+    monkeypatch.setattr(niche, "channels_info", lambda i: {})
+    ids = niche.new_batch("# Niche A\nq a\n\n# Niche B\nq b\n\n# Niche C\nq c", sort="relevance", period="year",
+                          per_query=20, new_months=12, deep=0)
+    for _ in ids:
+        niche.run_job(niche.next_queued())
+    pack, stem = niche.save_combined(ids[:2])
+    assert pack["count"] == 2 and [r["rank"] for r in pack["ranking"]] == [1, 2]
+    assert {n["name"] for n in pack["niches"]} == {"Niche A", "Niche B"}
+    assert (niche.reports_dir() / f"{stem}.xlsx").exists() and (niche.reports_dir() / f"{stem}.json").exists()
+    from openpyxl import load_workbook
+    wb = load_workbook(niche.reports_dir() / f"{stem}.xlsx")
+    assert wb.sheetnames[0] == "مقارنة النيشات" and len(wb.sheetnames) == 3
+    from machine.web.app import create_app
+    app = create_app()
+    app.config["TESTING"] = True
+    config.update_settings(lambda s: s.update({"password_hash": s.get("password_hash") or "x"}))
+    with app.test_client() as c:
+        with c.session_transaction() as s:
+            s["ok"] = True
+            s["csrf"] = "t"
+        assert "تحميل المحدد Excel" in c.get("/niche").get_data(as_text=True)
+        r = c.post("/niche/combined", data={"csrf": "t", "sel": ids, "fmt": "xlsx"})
+        assert r.status_code == 200 and r.headers["Content-Disposition"].endswith(".xlsx")
+        r = c.post("/niche/combined", data={"csrf": "t", "sel": ids, "fmt": "json"})
+        assert r.status_code == 200 and b'"ranking"' in r.data
+        assert c.post("/niche/combined", data={"csrf": "t", "fmt": "xlsx"}).status_code == 302
