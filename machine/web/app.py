@@ -259,6 +259,7 @@ def create_app() -> Flask:
                     c = st["channels"][section]
                     c["enabled"] = form.get("enabled") == "on"
                     c["auto_publish"] = form.get("auto_publish") == "on"
+                    c["full_auto"] = form.get("full_auto") == "on"
                     c["voice"]["name"] = form.get("voice", c["voice"]["name"])
                     try:
                         c["voice"]["rate"] = max(0.75, min(1.3, float(form.get("rate", 1.0))))

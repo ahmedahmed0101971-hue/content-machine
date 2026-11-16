@@ -476,3 +476,29 @@ def test_trend_momentum(clean_db):
     assert t["traffic"] == 50000 and t["traffic_first"] == 2000 and t["rising"] and t["growth_x"] == 25.0
     assert t["url"] == "https://n.example/2" and t["polls"] == 2
     assert radar.traffic_num("1M+ searches") == 1_000_000 and radar.traffic_num("") is None
+
+
+def test_full_auto_publishes_unreachable_but_holds_contradictions(clean_db):
+    assert config.load_settings()["channels"]["money"]["full_auto"] is True
+    p = load_sample("sample-short-cola")
+    p["id"] = "fa-ok"
+    p["facts"].append({"value": "Week 11", "source": "https://unreachable.example/x", "kind": "literal"})
+    p["scenes"][1]["vo"] += " It was Week 11."
+    db.pkg_insert(p, "new")
+    q = load_sample("sample-short-cola")
+    q["id"] = "fa-bad"
+    q["facts"][0]["value"] = "9.9"                          # contradicts the source
+    db.pkg_insert(q, "new")
+    pipeline.check_new()
+    assert db.pkg_get("fa-ok")["status"] == "approved"
+    assert db.pkg_get("fa-bad")["status"] == "needs_review"
+    config.update_settings(lambda s: s["channels"]["money"].update(full_auto=False))
+    try:
+        r = load_sample("sample-short-cola")
+        r["id"] = "strict"
+        r["facts"].append({"value": "Week 11", "source": "https://unreachable.example/x", "kind": "literal"})
+        db.pkg_insert(r, "new")
+        pipeline.check_new()
+        assert db.pkg_get("strict")["status"] == "needs_review"
+    finally:
+        config.update_settings(lambda s: s["channels"]["money"].update(full_auto=True))

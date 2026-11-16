@@ -152,6 +152,9 @@ def run(pkg: dict, blocked_words: list[str], allowed_phrases: list[str] | None =
         "ok": ok,
         # auto-publish needs at least one fact actually confirmed in an official source
         "auto_ok": ok and not derived and len(found) >= 1,
+        # "full auto" (owner's choice): only a confirmed contradiction or a blocked word stops the video.
+        # Unreachable source pages, computed facts and numbers without a listed fact are accepted.
+        "full_auto_ok": not blocked and not missing,
         "facts": facts_out,
         "uncovered_numbers": uncovered,
         "blocked_words": blocked,

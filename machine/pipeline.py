@@ -106,7 +106,8 @@ def check_new() -> None:
             res = {"ok": False, "auto_ok": False, "facts": [], "uncovered_numbers": [], "blocked_words": [],
                    "summary": f"الفحص ماكملش: {e}"}
         pub = package.publish_time(pkg, ch)
-        auto = ch.get("auto_publish") and res["auto_ok"] and not s.get("emergency_stop")
+        passed = res.get("full_auto_ok") if ch.get("full_auto") else res["auto_ok"]
+        auto = ch.get("auto_publish") and passed and not s.get("emergency_stop")
         db.pkg_update(p["id"], check_result=res, publish_at=pub.isoformat(),
                       status="approved" if auto else "needs_review")
         if auto:
@@ -380,7 +381,8 @@ def system_snapshot() -> dict:
             "youtube_connected": ch.get("youtube", {}).get("connected", False),
             "today_et": today,
             "recent": [{"id": p["id"], "title": p["data"]["youtube"]["title"], "slot": p["slot"], "date": p["pkg_date"],
-                        "status": p["status"], "note": p["note"], "error": p["error"][:200]} for p in recent],
+                        "status": p["status"], "note": p["note"], "error": p["error"][:200],
+                        "check": ((p.get("check_result") or {}).get("summary") or "")[:300]} for p in recent],
         }
     return {"generated": datetime.now(timezone.utc).isoformat(), "emergency_stop": s.get("emergency_stop", False),
             "youtube_audited": s.get("youtube_audited", False), "channels": chans}

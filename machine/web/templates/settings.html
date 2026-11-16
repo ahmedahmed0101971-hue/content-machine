@@ -21,6 +21,7 @@
   <div class="row between"><h2>{{ c.name }}</h2>{% if c.youtube.connected %}<span class="chip ok">{{ c.youtube.channel_title }}</span>{% else %}<span class="chip warn">يوتيوب مش مربوط</span>{% endif %}</div>
   <div class="switch"><div><strong>القناة شغالة</strong><div class="sub">لما تتقفل: مفيش سحب أخبار ولا فيديوهات جديدة ليها</div></div><input type="checkbox" name="enabled" {{ 'checked' if c.enabled }}></div>
   <div class="switch"><div><strong>نشر آلي من غير مراجعتي</strong><div class="sub">بس للفيديوهات اللي كل أرقامها اتلقت حرفياً في المصدر الرسمي. الباقي يستناك.</div></div><input type="checkbox" name="auto_publish" {{ 'checked' if c.auto_publish }}></div>
+  <div class="switch"><div><strong>أوتوماتيك بالكامل (من غير أي مراجعة)</strong><div class="sub">الفيديو بينزل حتى لو موقع المصدر ماتفتحش من السيرفر أو فيه رقم محسوب. بيقف بس لو رقم اتلقى غلط في المصدر أو فيه كلمة ممنوعة، وClaude بيصلّحه في اللفة الجاية.</div></div><input type="checkbox" name="full_auto" {{ 'checked' if c.full_auto }}></div>
 
   <label for="brand_{{ cid }}">الاسم اللي بيظهر على الفيديو</label>
   <input id="brand_{{ cid }}" class="ltr" type="text" name="brand" value="{{ c.theme.brand }}" maxlength="40">

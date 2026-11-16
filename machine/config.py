@@ -91,6 +91,12 @@ def _migrate(s: dict) -> dict:
         if m is not None and "trump account" not in [w.lower() for w in m.get("priority_keywords", [])]:
             m.setdefault("priority_keywords", []).append("trump account")
         done.add("trump_accounts_priority")
+    if "money_full_auto" not in done:                  # owner asked (2026-11-17): no manual review at all
+        m = s.get("channels", {}).get("money")
+        if m is not None:
+            m["full_auto"] = True
+            m["auto_publish"] = True
+        done.add("money_full_auto")
     s["_migrations"] = sorted(done)
     return s
 
