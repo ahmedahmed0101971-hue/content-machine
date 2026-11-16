@@ -98,10 +98,13 @@ def validate(pkg: dict, settings: dict) -> list[str]:
         if not th.get("tile_value") or not th.get("words"):
             errs.append("الصورة المصغرة ناقصة (tile_value و words)")
         else:
-            if len(str(th.get("tile_top", ""))) > 9:
-                errs.append("الصورة المصغرة: الكلمة اللي فوق النتيجة أطول من 9 حروف")
-            if len(str(th["tile_value"])) > 7:
-                errs.append("الصورة المصغرة: الرقم في النتيجة أطول من 7 حروف")
+            bold = str(th.get("template", "C")).upper() != "B"
+            if len(str(th.get("tile_top", ""))) > (18 if bold else 9):
+                errs.append("الصورة المصغرة: الكلمة اللي فوق أطول من المسموح")
+            if len(str(th["tile_value"])) > (9 if bold else 7):
+                errs.append("الصورة المصغرة: الرقم أطول من المسموح")
+            if len(str(th.get("chip", ""))) > 12:
+                errs.append("الصورة المصغرة: chip أطول من 12 حرف")
             if not isinstance(th["words"], list) or not 1 <= len(th["words"]) <= 4 or any(len(str(w)) > 11 for w in th["words"]):
                 errs.append("الصورة المصغرة: من 1 لـ4 كلمات، وكل كلمة 11 حرف بالكتير")
     if not pkg.get("sources"):

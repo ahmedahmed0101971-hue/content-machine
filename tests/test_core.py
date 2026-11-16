@@ -204,9 +204,19 @@ def test_thumbnail_rules_and_no_truncation(tmp_path):
     assert package.validate(p, s) == []
     assert _fields(p)[1] == "$202.90"
     render_thumbnail(p, s["channels"]["money"]["theme"], str(tmp_path / "t.jpg"))
-    p["thumbnail"] = {"tile_top": "NOVEMBER2026", "tile_value": "$1,234.56", "words": ["A", "B", "C", "D", "E"]}
+    p["thumbnail"] = {"template": "B", "tile_top": "NOVEMBER2026", "tile_value": "$1,234.56", "words": ["A", "B", "C", "D", "E"]}
     errs = package.validate(p, s)
     assert len([e for e in errs if "الصورة المصغرة" in e]) == 3
+    # template C (default): longer label/value allowed, words rule unchanged
+    p["thumbnail"] = {"tile_top": "SOCIAL SECURITY", "tile_value": "$2,170.5", "words": ["YOUR", "NEW", "CHECK"],
+                      "chip": "JAN 2027", "style": "money"}
+    assert package.validate(p, s) == []
+    render_thumbnail(p, s["channels"]["money"]["theme"], str(tmp_path / "c.jpg"))
+    for style in ("alert", "sports", "tech", "weather", "movies", "news", "nope"):
+        p["thumbnail"] = {"tile_top": "iOS 26.2", "tile_value": "", "words": ["UPDATE", "NOW"], "style": style}
+        render_thumbnail(p, {}, str(tmp_path / f"{style}.jpg"))
+    from machine.render.thumbnail import bold_fields
+    assert bold_fields(p)["label"] == "iOS 26.2" and bold_fields(p)["style"] == "money"
 
 
 def test_youtube_meta_shorts_and_sources():
@@ -446,3 +456,23 @@ def test_trend_match_is_strict():
     assert radar.trend_match("Treasury statement on the election of the new board", q) is None
     assert radar.trend_match("When is the next Social Security payment? SSA explains", q) == "social security payment"
     assert radar.trend_match("Treasury sanctions Venezuela oil exports", q) == "venezuela"
+
+
+def test_trend_momentum(clean_db):
+    ch = copy.deepcopy(config.load_settings()["channels"]["money"])
+    ch["sources"] = [{"id": "google_trends", "name": "t", "type": "rss", "role": "trends", "url": "https://t.example/rss", "enabled": True}]
+
+    def feed(vol, story):
+        return f"""<?xml version="1.0"?><rss xmlns:ht="https://trends.google.com/trending/rss" version="2.0"><channel>
+        <item><title>powerball jackpot</title><ht:approx_traffic>{vol}+</ht:approx_traffic>
+        <ht:news_item><ht:news_item_title>Jackpot climbs</ht:news_item_title><ht:news_item_url>{story}</ht:news_item_url></ht:news_item></item>
+        </channel></rss>""".encode()
+    put_feed("https://t.example/rss", feed("2,000", "https://n.example/1"))
+    radar.run_channel("money", ch)
+    put_feed("https://t.example/rss", feed("50K", "https://n.example/2"))       # same search, new story, more volume
+    radar.run_channel("money", ch)
+    assert clean_db.execute("SELECT COUNT(*) n FROM radar_items WHERE source_id='google_trends'").fetchone()["n"] == 1
+    t = radar.candidates_snapshot("money")["google_trends_us"][0]
+    assert t["traffic"] == 50000 and t["traffic_first"] == 2000 and t["rising"] and t["growth_x"] == 25.0
+    assert t["url"] == "https://n.example/2" and t["polls"] == 2
+    assert radar.traffic_num("1M+ searches") == 1_000_000 and radar.traffic_num("") is None

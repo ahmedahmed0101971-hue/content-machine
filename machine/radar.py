@@ -340,16 +340,22 @@ def run_channel(cid: str, ch: dict) -> list[dict]:
             dt = item_date(it)
             if dt and dt < oldest:
                 continue                     # old news (archive pages list years of releases): never a candidate
-            key = hashlib.sha1(f"{cid}|{src['id']}|{it.get('id') or it['url'] or it['title']}".encode()).hexdigest()
+            ident = it["title"].lower() if role == "trends" else (it.get("id") or it["url"] or it["title"])
+            key = hashlib.sha1(f"{cid}|{src['id']}|{ident}".encode()).hexdigest()
             tier = 0 if role == "trends" else classify(it["title"], ch)
             if first_run and not dt and role != "trends":
                 tier = TIER_BASELINE         # undated item already on the page the first time we looked: not news
+            if role == "trends":
+                _trend_history(key, it.get("extra", ""), now)
             try:
                 db.conn().execute(
                     "INSERT INTO radar_items(key,channel,source_id,title,url,published,extra,tier,first_seen) VALUES(?,?,?,?,?,?,?,?,?)",
                     (key, cid, src["id"], it["title"], it.get("url", ""), dt.isoformat() if dt else "",
                      it.get("extra", ""), tier, now))
             except Exception:
+                if role == "trends" and it.get("extra"):     # same search still trending: keep its latest volume/story
+                    db.conn().execute("UPDATE radar_items SET extra=?, url=COALESCE(NULLIF(?,''),url) WHERE key=?",
+                                      (it["extra"], it.get("url", ""), key))
                 continue   # already seen
             if role != "trends" and tier in (2, 3):
                 new_items.append({**it, "tier": tier, "source": src["name"], "key": key})
@@ -363,6 +369,41 @@ def run_channel(cid: str, ch: dict) -> list[dict]:
             db.conn().execute("UPDATE radar_items SET trend_match=1, extra=? WHERE key=?",
                               (f"trending search: {q}"[:300], it["key"]))
     return new_items
+
+
+# ------------------------------------------------------------------ trend momentum
+def traffic_num(extra: str) -> int | None:
+    m = re.match(r"\s*([\d,.]+)\s*([KkMm])?\+", extra or "")
+    if not m:
+        return None
+    n = float(m.group(1).replace(",", ""))
+    return int(n * {"k": 1_000, "m": 1_000_000}.get((m.group(2) or "").lower(), 1))
+
+
+def _trend_history(key: str, extra: str, now: float) -> None:
+    """Search volume of each trending search every time the radar sees it (to spot rising trends)."""
+    hist = db.kv_get("trendhist", {})
+    h = hist.setdefault(key, [])
+    t = traffic_num(extra)
+    if not h or h[-1][1] != t or now - h[-1][0] > 3600:
+        h.append([now, t])
+        del h[:-12]
+    if len(hist) > 400:
+        for k in sorted(hist, key=lambda k: hist[k][-1][0])[: len(hist) - 400]:
+            hist.pop(k, None)
+    db.kv_set("trendhist", hist)
+
+
+def trend_info(key: str, first_seen: float, extra: str) -> dict:
+    h = db.kv_get("trendhist", {}).get(key, [])
+    vols = [v for _, v in h if v]
+    now_v = traffic_num(extra) or (vols[-1] if vols else None)
+    first_v = vols[0] if vols else now_v
+    return {"traffic": now_v, "traffic_first": first_v, "polls": len(h),
+            "rising": bool(now_v and first_v and now_v > first_v),
+            "growth_x": round(now_v / first_v, 1) if now_v and first_v else None,
+            "minutes_trending": round((time.time() - first_seen) / 60),
+            "news": (extra.split(" · ", 1)[1] if " · " in (extra or "") else "")}
 
 
 def candidates_snapshot(cid: str, days: int = 7) -> dict:
@@ -380,7 +421,12 @@ def candidates_snapshot(cid: str, days: int = 7) -> dict:
         d["first_seen"] = datetime.fromtimestamp(d["first_seen"], timezone.utc).isoformat()
         d["published"] = pub.isoformat() if pub else ""
         d["age_hours"] = round((datetime.now(timezone.utc) - pub).total_seconds() / 3600, 1) if pub else None
-        (trends if d["tier"] == 0 else items).append(d)
+        if d["tier"] == 0:
+            key = hashlib.sha1(f"{cid}|{d['source_id']}|{d['title'].lower()}".encode()).hexdigest()
+            d.update(trend_info(key, r["first_seen"], d.get("extra") or ""))
+            trends.append(d)
+        else:
+            items.append(d)
     items.sort(key=lambda x: x["published"] or x["first_seen"], reverse=True)
     return {"channel": cid, "generated": datetime.now(timezone.utc).isoformat(),
             "note": f"Only items published in the last {days} days. age_hours = hours since the official publish time.",
